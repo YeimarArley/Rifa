@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Rifa</title>
+    <style>
+        :root {
+            --bg: #000;
+            --text: #fff;
+            --text-muted: #aaa;
+            --card-bg: #111;
+            --card-border: #333;
+            --primary: #fff;
+            --primary-hover: #ccc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .admin-nav {
+            background: var(--card-bg);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid var(--card-border);
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .nav-links a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-hover);
+        }
+
+        .admin-container {
+            padding: 2rem;
+        }
+
+        .filters-section {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--card-border);
+        }
+
+        .filters-section h2 {
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .filters-form {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .filter-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            background: var(--primary);
+            color: var(--bg);
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .metric-info h3 {
+            font-size: 2rem;
+            margin: 0;
+            color: var(--primary);
+        }
+
+        .metric-info p {
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .purchases-section {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+        }
+
+        .purchases-section h2 {
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: var(--text);
+        }
+
+        .admin-table thead {
+            background: var(--card-border);
+        }
+
+        .admin-table th,
+        .admin-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .admin-table th {
+            color: var(--primary);
+        }
+
+        .admin-table tbody tr:hover {
+            background: var(--card-border);
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+<div class="admin-wrapper">
+    <nav class="admin-nav">
+        <div class="nav-container">
+            <h2 class="nav-title">Panel Admin - Rifa</h2>
+            <div class="nav-links">
+                <a href="/logout">Cerrar Sesión</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="admin-container">
+        <!-- Buscador -->
+        <div class="filters-section">
+            <h2>Buscar Compras</h2>
+            <form class="filters-form" method="GET" action="/admin_panel">
+                <div class="filter-group">
+                    <label for="search">Buscar por Nombre o Correo</label>
+                    <input type="text" id="search" name="search" placeholder="Ej: Juan Pérez o juan@email.com">
+                </div>
+                <button type="submit" class="btn">Buscar</button>
+            </form>
+        </div>
+
+        <!-- Tarjetas de Métricas -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">🎟️</div>
+                <div class="metric-info">
+                    <h3>Total números disponibles</h3>
+                    <p>Números Disponibles</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">✅</div>
+                <div class="metric-info">
+                    <h3>Total números comprados</h3>
+                    <p>Números Comprados</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Compras -->
+        <div class="purchases-section">
+            <h2>Compras Registradas</h2>
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Números</th>
+                            <th>Correo Electrónico</th>
+                            <th>Referencia de Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Aquí se conectará con la base de datos -->
+                        <tr>
+                            <td>Ejemplo Nombre</td>
+                            <td>123456789</td>
+                            <td>1, 2, 3</td>
+                            <td>ejemplo@email.com</td>
+                            <td>REF12345</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5" class="no-data">No se encontraron compras.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+</div>
+</body>
+</html>
