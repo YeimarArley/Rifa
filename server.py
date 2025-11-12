@@ -118,6 +118,15 @@ def assign_numbers(count):
 def save_purchase(invoice_id, amount, email, numbers):
     numbers_str = ','.join(map(str, numbers))
 
+    # Check current assigned count to avoid exceeding total (2000)
+    try:
+        current_assigned = app_db.count_assigned_numbers()
+    except Exception:
+        current_assigned = 0
+
+    if (current_assigned + len(numbers)) > 2000:
+        raise ValueError("Not enough numbers available to fulfill this purchase")
+
     # Insert purchase
     app_db.run_query("INSERT INTO purchases (invoice_id, amount, email, numbers, status) VALUES (%s, %s, %s, %s, 'confirmed')",
                      params=(invoice_id, amount, email, numbers_str), commit=True)
