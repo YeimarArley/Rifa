@@ -89,4 +89,4 @@ python3 -m unittest discover tests
 
 ---
 
-Desarrollado por NOVA51 — Yeimar Arley & Faider Asprilla
+Desarrollado por NOVA51 — Yeimar Arley, Yeiver & Faider Asprilla
