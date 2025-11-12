@@ -53,7 +53,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize database using app.db module (handles Postgres or sqlite fallback)
-app_db.init_db()
+try:
+    app_db.init_db()
+except Exception as e:
+    logger.error(f"Error initializing database: {e}")
+    import traceback
+    traceback.print_exc()
 
 # ePayco configuration
 EPAYCO_PUBLIC_KEY = os.getenv('EPAYCO_PUBLIC_KEY', '70b19a05a3f3374085061d1bfd386a8b')
@@ -140,7 +145,13 @@ def verify_signature(data, signature):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error rendering index.html: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Error loading page: {str(e)}", 500
 
 @app.route('/<path:filename>')
 def serve_static(filename):
@@ -245,167 +256,285 @@ def progress():
 
 @app.route('/database')
 def database():
-    purchases = app_db.run_query("SELECT * FROM purchases ORDER BY created_at DESC LIMIT 50", fetchall=True) or []
-    assigned_count = app_db.count_assigned_numbers()
-
-    return f"""
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Administración de Base de Datos - Rifa</title>
-        <style>
-            body {{
-                font-family: Arial, sans-serif;
-                margin: 20px;
-                background-color: #f5f5f5;
-                color: #333;
-            }}
-            .container {{
-                max-width: 1200px;
-                margin: 0 auto;
-                background: white;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }}
-            h1 {{
-                color: #2c3e50;
-                text-align: center;
-                margin-bottom: 30px;
-            }}
-            .stats {{
-                display: flex;
-                justify-content: space-around;
-                margin-bottom: 30px;
-                padding: 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border-radius: 8px;
-            }}
-            .stat {{
-                text-align: center;
-            }}
-            .stat h3 {{
-                margin: 0;
-                font-size: 2em;
-            }}
-            .stat p {{
-                margin: 5px 0 0 0;
-                opacity: 0.9;
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 20px;
-                background: white;
-            }}
-            th, td {{
-                padding: 12px;
-                text-align: left;
-                border-bottom: 1px solid #ddd;
-            }}
-            th {{
-                background-color: #4CAF50;
-                color: white;
-                font-weight: bold;
-            }}
-            tr:hover {{
-                background-color: #f8f9fa;
-            }}
-            .actions {{
-                display: flex;
-                gap: 10px;
-            }}
-            .btn {{
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 0.9em;
-            }}
-            .btn-edit {{
-                background-color: #2196F3;
-                color: white;
-            }}
-            .btn-delete {{
-                background-color: #f44336;
-                color: white;
-            }}
-            .btn:hover {{
-                opacity: 0.8;
-            }}
-            .back-link {{
-                display: inline-block;
-                margin-bottom: 20px;
-                padding: 10px 20px;
-                background-color: #4CAF50;
-                color: white;
-                text-decoration: none;
-                border-radius: 4px;
-            }}
-            .back-link:hover {{
-                background-color: #45a049;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <a href="/" class="back-link">← Volver al Inicio</a>
-            <h1>🗄️ Administración de Base de Datos - Rifa 5 Millones</h1>
-
-            <div class="stats">
-                <div class="stat">
-                    <h3>{assigned_count}</h3>
-                    <p>Números Asignados</p>
-                </div>
-                <div class="stat">
-                    <h3>{2000 - assigned_count}</h3>
-                    <p>Números Disponibles</p>
-                </div>
-                <div class="stat">
-                    <h3>{len(purchases)}</h3>
-                    <p>Total Compras</p>
-                </div>
-            </div>
-
-            <h2>📋 Compras Recientes</h2>
-            <table>
-                <thead>
+    """Panel de administración de la base de datos con manejo de errores mejorado."""
+    try:
+        # Obtener compras con manejo de errores
+        try:
+            purchases = app_db.run_query(
+                "SELECT * FROM purchases ORDER BY created_at DESC LIMIT 50", 
+                fetchall=True
+            ) or []
+        except Exception as e:
+            logger.error(f"Error obteniendo compras: {e}")
+            purchases = []
+        
+        # Contar números asignados con manejo de errores
+        try:
+            assigned_count = app_db.count_assigned_numbers()
+        except Exception as e:
+            logger.error(f"Error contando números: {e}")
+            assigned_count = 0
+        
+        # Generar filas de la tabla de manera segura
+        table_rows = ""
+        if purchases:
+            for p in purchases:
+                try:
+                    # Asegurar que todos los valores existan
+                    p_id = p[0] if len(p) > 0 else 'N/A'
+                    p_invoice = p[1] if len(p) > 1 else 'N/A'
+                    p_amount = p[2] if len(p) > 2 else 0
+                    p_email = p[3] if len(p) > 3 else 'N/A'
+                    p_numbers = p[4] if len(p) > 4 else ''
+                    p_status = p[5] if len(p) > 5 else 'pending'
+                    
+                    table_rows += f'''
                     <tr>
-                        <th>ID</th>
-                        <th>Referencia</th>
-                        <th>Monto</th>
-                        <th>Email</th>
-                        <th>Números</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {"".join(f'''
-                    <tr>
-                        <td>{p[0]}</td>
-                        <td>{p[1]}</td>
-                        <td>${p[2]:,.0f}</td>
-                        <td>{p[3]}</td>
-                        <td>{p[4]}</td>
-                        <td>{p[5]}</td>
+                        <td>{p_id}</td>
+                        <td>{p_invoice}</td>
+                        <td>${float(p_amount):,.0f}</td>
+                        <td>{p_email}</td>
+                        <td>{p_numbers}</td>
+                        <td>{p_status}</td>
                         <td class="actions">
-                            <a href="/edit_purchase/{p[0]}" class="btn btn-edit">Editar</a>
-                            <a href="/delete_purchase/{p[0]}" class="btn btn-delete" onclick="return confirm('¿Estás seguro de eliminar esta compra?')">Eliminar</a>
+                            <a href="/edit_purchase/{p_id}" class="btn btn-edit">Editar</a>
+                            <a href="/delete_purchase/{p_id}" class="btn btn-delete" onclick="return confirm('¿Estás seguro de eliminar esta compra?')">Eliminar</a>
                         </td>
                     </tr>
-                    ''' for p in purchases)}
-                </tbody>
-            </table>
-        </div>
-    </body>
-    </html>
-    """
+                    '''
+                except Exception as e:
+                    logger.error(f"Error procesando fila: {e}")
+                    continue
+        else:
+            table_rows = '''
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 20px; color: #666;">
+                        No hay compras registradas aún
+                    </td>
+                </tr>
+            '''
+
+        return f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Administración de Base de Datos - Rifa</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    margin: 20px;
+                    background-color: #f5f5f5;
+                    color: #333;
+                }}
+                .container {{
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background: white;
+                    padding: 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }}
+                h1 {{
+                    color: #2c3e50;
+                    text-align: center;
+                    margin-bottom: 30px;
+                }}
+                .stats {{
+                    display: flex;
+                    justify-content: space-around;
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border-radius: 8px;
+                }}
+                .stat {{
+                    text-align: center;
+                }}
+                .stat h3 {{
+                    margin: 0;
+                    font-size: 2em;
+                }}
+                .stat p {{
+                    margin: 5px 0 0 0;
+                    opacity: 0.9;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 20px;
+                    background: white;
+                }}
+                th, td {{
+                    padding: 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #ddd;
+                }}
+                th {{
+                    background-color: #4CAF50;
+                    color: white;
+                    font-weight: bold;
+                }}
+                tr:hover {{
+                    background-color: #f8f9fa;
+                }}
+                .actions {{
+                    display: flex;
+                    gap: 10px;
+                }}
+                .btn {{
+                    padding: 6px 12px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    text-decoration: none;
+                    display: inline-block;
+                    font-size: 0.9em;
+                }}
+                .btn-edit {{
+                    background-color: #2196F3;
+                    color: white;
+                }}
+                .btn-delete {{
+                    background-color: #f44336;
+                    color: white;
+                }}
+                .btn:hover {{
+                    opacity: 0.8;
+                }}
+                .back-link {{
+                    display: inline-block;
+                    margin-bottom: 20px;
+                    padding: 10px 20px;
+                    background-color: #4CAF50;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                }}
+                .back-link:hover {{
+                    background-color: #45a049;
+                }}
+                .db-info {{
+                    background: #e3f2fd;
+                    padding: 10px 15px;
+                    border-radius: 4px;
+                    margin-bottom: 20px;
+                    border-left: 4px solid #2196F3;
+                }}
+                .db-info strong {{
+                    color: #1976d2;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <a href="/" class="back-link">← Volver al Inicio</a>
+                
+                <div class="db-info">
+                    <strong>✓ Conectado a PostgreSQL en Neon</strong> - Base de datos en la nube
+                </div>
+                
+                <h1>🗄️ Administración de Base de Datos - Rifa 5 Millones</h1>
+
+                <div class="stats">
+                    <div class="stat">
+                        <h3>{assigned_count}</h3>
+                        <p>Números Asignados</p>
+                    </div>
+                    <div class="stat">
+                        <h3>{2000 - assigned_count}</h3>
+                        <p>Números Disponibles</p>
+                    </div>
+                    <div class="stat">
+                        <h3>{len(purchases)}</h3>
+                        <p>Total Compras</p>
+                    </div>
+                </div>
+
+                <h2>📋 Compras Recientes</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Referencia</th>
+                            <th>Monto</th>
+                            <th>Email</th>
+                            <th>Números</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {table_rows}
+                    </tbody>
+                </table>
+            </div>
+        </body>
+        </html>
+        """
+    except Exception as e:
+        logger.error(f"Error crítico en endpoint /database: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Error - Base de Datos</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    padding: 40px;
+                    background: #f5f5f5;
+                }}
+                .error-box {{
+                    background: white;
+                    padding: 30px;
+                    border-radius: 8px;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    border-left: 4px solid #f44336;
+                }}
+                h1 {{
+                    color: #f44336;
+                }}
+                pre {{
+                    background: #f5f5f5;
+                    padding: 15px;
+                    border-radius: 4px;
+                    overflow-x: auto;
+                }}
+                .back-link {{
+                    display: inline-block;
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background: #4CAF50;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="error-box">
+                <h1>❌ Error en Base de Datos</h1>
+                <p>No se pudo cargar el panel de administración.</p>
+                <h3>Detalles del error:</h3>
+                <pre>{str(e)}</pre>
+                <p><strong>Posibles soluciones:</strong></p>
+                <ul>
+                    <li>Verifica que PostgreSQL en Neon esté accesible</li>
+                    <li>Asegúrate de que las tablas existan: ejecuta <code>python reset_db_simple.py</code></li>
+                    <li>Revisa los logs del servidor en la terminal</li>
+                </ul>
+                <a href="/" class="back-link">← Volver al Inicio</a>
+            </div>
+        </body>
+        </html>
+        """, 500
 
 @app.route('/edit_purchase/<int:purchase_id>', methods=['GET', 'POST'])
 def edit_purchase(purchase_id):
@@ -556,4 +685,4 @@ def delete_purchase(purchase_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=True)
