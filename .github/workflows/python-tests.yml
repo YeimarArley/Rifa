@@ -1,0 +1,63 @@
+name: Python tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Set up Postgres service
+        uses: Harmon758/postgres-action@v1.0.6
+        with:
+          postgresql version: '14'
+          postgresql db: rifa_db
+          postgresql user: rifa_user
+          postgresql password: rifa_password
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            pg_isready -h 127.0.0.1 -p 5432 && break || sleep 1
+          done
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Apply migration & seed
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_NAME: rifa_db
+          DB_USER: rifa_user
+          DB_PASSWORD: rifa_password
+        run: |
+          source .venv/bin/activate
+          psql "host=${DB_HOST} port=${DB_PORT} dbname=${DB_NAME} user=${DB_USER} password=${DB_PASSWORD}" -f migracion_postgresql.sql || true
+          ./scripts/seed_numbers.sh
+
+      - name: Run tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_NAME: rifa_db
+          DB_USER: rifa_user
+          DB_PASSWORD: rifa_password
+        run: |
+          source .venv/bin/activate
+          python -m unittest discover -v tests

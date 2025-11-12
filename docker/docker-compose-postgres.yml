@@ -1,0 +1,38 @@
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: rifa_postgres
+    environment:
+      POSTGRES_DB: rifa_db
+      POSTGRES_USER: rifa_user
+      POSTGRES_PASSWORD: rifa_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migracion_postgresql.sql:/docker-entrypoint-initdb.d/migracion_postgresql.sql
+    networks:
+      - rifa_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: rifa_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@rifa.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+    networks:
+      - rifa_network
+
+volumes:
+  postgres_data:
+
+networks:
+  rifa_network:
+    driver: bridge

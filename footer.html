@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- META: Configuración de caracteres y viewport para móviles -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Footer - Rifa Familiones</title>
+    <style>
+        /* ESTILOS GLOBALES: Reset de márgenes y padding */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0a0a0a;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes stepGlow {
+            0%, 100% {
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+                background: #ffffff;
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);
+                background: #f8f9fa;
+                transform: scale(1.02);
+            }
+        }
+
+        /* ANIMACIÓN: Pulse luminoso para nombres de desarrolladores */
+        @keyframes developerNameGlow {
+            0%, 100% {
+                color: #4CAF50;
+                text-shadow: 0 0 5px rgba(76, 175, 80, 0.3),
+                             0 0 10px rgba(76, 175, 80, 0);
+                transform: scale(1);
+            }
+            50% {
+                color: #45a049;
+                text-shadow: 0 0 10px rgba(76, 175, 80, 0.6),
+                             0 0 20px rgba(76, 175, 80, 0.4),
+                             0 0 30px rgba(76, 175, 80, 0.2);
+                transform: scale(1.05);
+            }
+        }
+
+        /* ANIMACIÓN: Brillo ondulante para nombres */
+        @keyframes nameShine {
+            0% {
+                background-position: -200% center;
+            }
+            100% {
+                background-position: 200% center;
+            }
+        }
+
+        footer {
+            background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+            color: #ffffff;
+            padding: 40px 20px 80px 20px;
+            margin-top: 60px;
+            border-top: 3px solid #4CAF50;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Decorative line */
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #4CAF50, transparent);
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Main Footer Content Grid */
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .footer-section {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(76, 175, 80, 0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .footer-section:hover {
+            background: rgba(76, 175, 80, 0.05);
+            border-color: rgba(76, 175, 80, 0.2);
+        }
+
+        .footer-section h3 {
+            color: #4CAF50;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.4em;
+            margin: 0 0 10px 0;
+            letter-spacing: 2px;
+        }
+
+        .footer-section h4 {
+            color: #4CAF50;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.1em;
+            margin: 0 0 15px 0;
+            letter-spacing: 1.5px;
+        }
+
+        .footer-section p {
+            color: #cccccc;
+            font-size: 0.95em;
+            margin: 0;
+            line-height: 1.7;
+            font-weight: 500;
+        }
+
+        .footer-section .highlight {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        /* Links styling */
+        .footer-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .footer-links a {
+            color: #cccccc;
+            text-decoration: none;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+            display: inline-block;
+            font-weight: 500;
+        }
+
+        .footer-links a:hover {
+            color: #4CAF50;
+            transform: translateX(8px);
+        }
+
+        /* Social Media Icons */
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .social-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+            border: 2px solid #4CAF50;
+            border-radius: 50%;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+        }
+
+        .social-icon:hover {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            transform: scale(1.15) rotate(8deg);
+            box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .social-icon:nth-child(2):hover {
+            transform: scale(1.15) rotate(-8deg);
+        }
+
+        .social-icon svg {
+            width: 26px;
+            height: 26px;
+            fill: #4CAF50;
+            transition: all 0.3s ease;
+        }
+
+        .social-icon:hover svg {
+            fill: #ffffff;
+        }
+
+        /* Divider */
+        .footer-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.3), transparent);
+            margin: 30px 0;
+        }
+
+        /* Developers Section */
+        .developers-section {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 100%);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(76, 175, 80, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .developers-title {
+            margin: 0 0 20px 0;
+            font-size: 0.9em;
+            color: #4CAF50;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .developers-container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .developer-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .developer-card:hover {
+            transform: translateY(-8px) scale(1.05);
+        }
+
+        .developer-icon {
+            width: 65px;
+            height: 65px;
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.05) 100%);
+            border: 2px solid #4CAF50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .developer-card:hover .developer-icon {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .developer-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: #4CAF50;
+            transition: all 0.3s ease;
+        }
+
+        .developer-card:hover .developer-icon svg {
+            fill: #ffffff;
+        }
+
+        .developer-name {
+            margin: 0;
+            font-size: 1.15em;
+            color: #4CAF50;
+            font-weight: bold;
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 1.5px;
+            transition: all 0.3s ease;
+            animation: developerNameGlow 2.5s ease-in-out infinite;
+        }
+
+        .developer-card:hover .developer-name {
+            color: #45a049;
+            animation: developerNameGlow 1.2s ease-in-out infinite;
+        }
+
+        .developer-role {
+            margin: 8px 0 0 0;
+            font-size: 0.85em;
+            color: #999999;
+            font-weight: 500;
+        }
+
+        .developer-divider {
+            width: 2px;
+            height: 80px;
+            background: linear-gradient(180deg, transparent, rgba(76, 175, 80, 0.3), transparent);
+        }
+
+        /* Bottom Section */
+        .footer-bottom {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .footer-bottom-item {
+            font-size: 0.85em;
+            color: #999999;
+        }
+
+        .footer-bottom-item p {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .footer-bottom-item p:first-child {
+            margin: 0;
+        }
+
+        .footer-bottom-item p:last-child {
+            margin: 5px 0 0 0;
+        }
+
+        .nova-logo {
+            color: #4CAF50;
+            font-weight: bold;
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 1px;
+            font-size: 1.1em;
+        }
+
+        .whatsapp-link {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .whatsapp-link:hover {
+            text-decoration: underline;
+            transform: scale(1.05);
+        }
+
+        .whatsapp-icon {
+            width: 16px;
+            height: 16px;
+            fill: #4CAF50;
+        }
+
+        /* Footer Bottom Bar */
+        .footer-bar {
+            margin-top: 0;
+            padding-top: 20px;
+            border-top: 1px solid rgba(76, 175, 80, 0.2);
+            text-align: center;
+        }
+
+        .footer-bar p {
+            margin: 0;
+            font-size: 0.85em;
+            color: #4CAF50;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .footer-bar p:last-child {
+            margin: 8px 0 0 0;
+            font-size: 0.75em;
+            color: #666666;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            footer {
+                padding: 30px 15px 60px 15px;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .developers-container {
+                gap: 20px;
+            }
+
+            .developer-divider {
+                width: 80px;
+                height: 2px;
+            }
+
+            .footer-bottom {
+                grid-template-columns: 1fr;
+            }
+
+            .social-icons {
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <footer>
+        <div class="footer-container">
+            <!-- ===== SECCIÓN 1: GRID PRINCIPAL DE CONTENIDO ===== -->
+            <!-- Contiene 3 columnas: Acerca de | Enlaces | Redes Sociales -->
+            <div class="footer-grid">
+                
+                <!-- COLUMNA 1: INFORMACIÓN NOVA51 -->
+                <!-- Muestra: Nombre de la marca y descripción de la plataforma -->
+                <!-- Responsive: Se adapta a 1 columna en móviles -->
+                <div class="footer-section">
+                    <h3>NOVA51</h3>
+                    <p>
+                        Plataforma de rifas confiable y segura. 
+                        <br><span class="highlight">¡Gana 5 millones de pesos!</span>
+                    </p>
+                </div>
+
+                <!-- COLUMNA 2: ENLACES RÁPIDOS -->
+                <!-- Links que redirigen a:
+                     - Terminos.html: Términos y Condiciones
+                     - #: Placeholder para Política de Privacidad
+                     - #: Placeholder para Contacto
+                -->
+                <div class="footer-section">
+                    <h4>ENLACES</h4>
+                    <div class="footer-links">
+                        <a href="Terminos.html">➜ Términos y Condiciones</a>
+                        <a href="#">➜ Política de Privacidad</a>
+                        <a href="#">➜ Contacto</a>
+                    </div>
+                </div>
+
+                <!-- COLUMNA 3: REDES SOCIALES -->
+                <!-- Contiene botones con iconos SVG que abren:
+                     - Instagram: @laparla_delosniches (empresa)
+                     - Facebook: Perfil oficial de NOVA51
+                     - Efecto hover: Rotación y escala con color verde
+                -->
+                <div class="footer-section">
+                    <h4>SÍGUENOS</h4>
+                    <div class="social-icons">
+                        <!-- ICONO INSTAGRAM: SVG Material Design, 48x48px -->
+                        <!-- Función: Abre Instagram en nueva pestaña -->
+                        <a href="https://www.instagram.com/laparla_delosniches?igsh=c2Nid2lzMjBlamI1" target="_blank" class="social-icon" title="Instagram">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/>
+                            </svg>
+                        </a>
+                        <a href="https://www.facebook.com/profile.php?id=100057232008550&mibextid=wwXIfr&rdid=xdW9jsnLBAQzD5SL&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F14MuXThS7jv%2F%3Fmibextid%3DwwXIfr" target="_blank" class="social-icon" title="Facebook">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="footer-divider"></div>
+
+            <!-- ===== SECCIÓN 2: PANEL DE DESARROLLADORES ===== -->
+            <!-- Muestra créditos del equipo con:
+                 - Iconos SVG (emoji de caras sonrientes)
+                 - Nombres: YEIMAR ARLEY | FAIDER ASPRILLA
+                 - Roles: Frontend Developer | Backend Developer
+                 - Iconos de Instagram al lado de cada nombre
+                 - Enlaces directos a perfiles individuales de Instagram
+            -->
+            <div class="developers-section">
+                <p class="developers-title">Creado Por</p>
+                <div class="developers-container">
+                    <div class="developer-card">
+                        <!-- FOTO DE PERFIL YEIMAR ARLEY desde Google Drive -->
+                        <!-- URL de imagen directa accesible públicamente -->
+                        <a href="https://www.instagram.com/yeimar_arley/?igsh=MTJyb3hteHNkZGpsMA%3D%3D&utm_source=qr" target="_blank" style="text-decoration: none; cursor: pointer;">
+                            <div class="developer-icon" style="background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.05) 100%); overflow: hidden;">
+                                <img src="https://lh3.googleusercontent.com/d/1bXg237G8l4Y2BvTrk4PUhUH-S9xjOqJW=s200" alt="Yeimar Arley" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
+                            </div>
+                        </a>
+                        <!-- Contenedor flex: Nombre + Icono Instagram -->
+                        <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                            <a href="https://www.instagram.com/yeimar_arley/?igsh=MTJyb3hteHNkZGpsMA%3D%3D&utm_source=qr" target="_blank" style="text-decoration: none; color: inherit;">
+                                <p class="developer-name">YEIMAR ARLEY</p>
+                            </a>
+                            <!-- ICONO INSTAGRAM: 24x24px, color verde, efecto hover scale(1.2) -->
+                            <!-- Abre: https://www.instagram.com/yeimar_arley/ -->
+                            <a href="https://www.instagram.com/yeimar_arley/?igsh=MTJyb3hteHNkZGpsMA%3D%3D&utm_source=qr" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: rgba(76, 175, 80, 0.1); border: 1px solid #4CAF50; border-radius: 50%; text-decoration: none; transition: all 0.3s ease;" onmouseover="this.style.background='#4CAF50'; this.style.transform='scale(1.2)';" onmouseout="this.style.background='rgba(76, 175, 80, 0.1)'; this.style.transform='scale(1)';">
+                                <svg style="width: 14px; height: 14px; fill: #4CAF50; transition: all 0.3s ease;" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" onmouseover="this.style.fill='#ffffff';" onmouseout="this.style.fill='#4CAF50';">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/>
+                                </svg>
+                            </a>
+                        </div>
+                        <p class="developer-role">Frontend Developer</p>
+                    </div>
+                    <!-- Tarjeta de FAIDER ASPRILLA eliminada del footer raíz -->
+                </div>
+            </div>
+
+            <!-- ===== SECCIÓN 3: INFORMACIÓN DE SOPORTE Y DERECHOS ===== -->
+            <!-- Grid responsivo con:
+                 - Copyright y logo NOVA51
+                 - Soporte por WhatsApp con icono y número
+            -->
+            <div class="footer-bottom">
+                <!-- COLUMNA 1: COPYRIGHT -->
+                <!-- Muestra: Año de copyright y nombre de la empresa -->
+                <div class="footer-bottom-item">
+                    <p>© 2024</p>
+                    <p class="nova-logo">NOVA51 EMPRESA DE DESARROLLO WED</p>
+                </div>
+
+                <!-- COLUMNA 2: SOPORTE WHATSAPP -->
+                <!-- Función: Abre WhatsApp Web con mensaje predefinido
+                     API: wa.me/573206729877 (formato internacional)
+                     Número: +57 320 672 9877 (Colombia)
+                     Efecto: El ícono y número son clickeables
+                -->
+                <div class="footer-bottom-item">
+                    <p>Soporte WhatsApp</p>
+                    <p>
+                        <a href="https://wa.me/573206729877?text=Hola%20necesito%20soporte" target="_blank" class="whatsapp-link">
+                            <svg class="whatsapp-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-4.946 1.227l-.356.214-3.71-.973.992 3.63-.235.374a9.86 9.86 0 .029 12.976c1.15 1.151 2.597 2.053 4.228 2.758l.505.252 3.798.646-.47-3.773.267-.373a9.865 9.865 0 001.858-5.832c0-5.433-4.398-9.852-9.814-9.852"/>
+                            </svg>
+                            +57 320 672 9877
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <!-- BARRA FINAL: Certificaciones y Derechos de Autor -->
+        <!-- Contiene:
+             - Insignias: SEGURO | PSE | PROFESIONAL
+             - Copyright: Todos los derechos reservados © NOVA51
+        -->
+        <div class="footer-bar">
+            <p>✓ SEGURO  •  PSE  •  PROFESIONAL</p>
+            <p>Todos los derechos reservados © NOVA51</p>
+        </div>
+    </footer>
+</body>
+</html>

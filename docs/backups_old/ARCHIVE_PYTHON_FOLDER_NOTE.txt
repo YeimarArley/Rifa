@@ -1,0 +1,12 @@
+Nota: El contenido principal de la carpeta `python/` fue respaldado parcialmente en este directorio.
+No se borraron todos los archivos originales por seguridad. Revisa la carpeta `python/` y muévela manualmente a `docs/backups_old/python/` si deseas eliminarla completamente.
+
+Comandos sugeridos (macOS zsh):
+
+# Mover la carpeta python completa a backups_old (hazlo solo si confirmas)
+mv "python" "docs/backups_old/python/"
+
+# Mover la carpeta footer completa a backups_old (si todavía existe)
+mv "footer" "docs/backups_old/footer/"
+
+Si quieres que lo haga automáticamente, confírmalo y procederé a mover archivos nombrados explícitamente.

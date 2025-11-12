@@ -1,0 +1,81 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.tox/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+,cover
+*.cover
+*.py,cover
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+local_settings.py
+db.sqlite3
+
+# Flask instance folder
+instance/
+
+# envs
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+
+# dotenv
+.env
+.env.*
+
+# Database files
+*.db
+rifa.db
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# JetBrains
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Node
+node_modules/
+
+# Temporary files
+*.swp

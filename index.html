@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rifa-Familiones</title>
+    <link rel="icon" href="logo.svg" type="image/svg+xml">
+    <script src="https://checkout.epayco.co/checkout.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            color: #000000;
+            overflow-x: hidden;
+        }
+
+        
+        
+        .header {
+            background: linear-gradient(90deg, #000000 0%, #333333 100%);
+            color: #ffffff;
+            text-align: center;
+            padding: 5px 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            font-family: 'Bebas Neue', sans-serif;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            border-bottom: 1px solid #ffffff;
+            width: 100%;
+            animation: slideDown 1s ease-out;
+            letter-spacing: 1px;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .slider {
+            position: relative;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+            max-height: 600px;
+            overflow: hidden;
+            animation: fadeIn 2s ease-in;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .slides {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            opacity: 0;
+            animation: fadeSlides 10s infinite;
+        }
+
+        .slide:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .slide:nth-child(2) {
+            animation-delay: 2.5s;
+        }
+
+        .slide:nth-child(3) {
+            animation-delay: 5s;
+        }
+
+        .slide:nth-child(4) {
+            animation-delay: 7.5s;
+        }
+
+        @keyframes fadeSlides {
+            0%, 20% { opacity: 1; }
+            25%, 100% { opacity: 0; }
+        }
+
+        @media (max-width: 1024px) {
+            .slider {
+                max-height: 450px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .slider {
+                max-height: 350px;
+                border-radius: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .slider {
+                max-height: 250px;
+                border-radius: 8px;
+            }
+        }
+
+        .tickets {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 40px 20px;
+            animation: bounceIn 1.5s ease-out;
+            flex-wrap: wrap;
+            perspective: 1000px;
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            margin: 20px 0;
+            border-radius: 20px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .ticket {
+            width: 200px;
+            height: 120px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border: 2px solid #ffffff;
+            border-radius: 15px 0 0 15px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3), 0 5px 15px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+            animation: ticketEntrance 1s ease-out forwards;
+            opacity: 0;
+            transform: translateY(50px) rotateX(90deg) translateZ(0);
+            transform-style: preserve-3d;
+        }
+
+        @keyframes ticketEntrance {
+            to {
+                opacity: 1;
+                transform: translateY(0) rotateX(0deg);
+            }
+        }
+
+        .ticket-stub {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+            border-left: 2px dashed #4CAF50;
+            border-radius: 0 10px 10px 0;
+            box-shadow: inset 1px 0 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .ticket-stub::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background: #4CAF50;
+            border-radius: 50%;
+            box-shadow: 0 8px 0 #4CAF50, 0 16px 0 #4CAF50, 0 24px 0 #4CAF50, 0 32px 0 #4CAF50, 0 40px 0 #4CAF50, 0 48px 0 #4CAF50, 0 56px 0 #4CAF50, 0 64px 0 #4CAF50, 0 72px 0 #4CAF50, 0 80px 0 #4CAF50, 0 88px 0 #4CAF50, 0 96px 0 #4CAF50, 0 104px 0 #4CAF50;
+        }
+
+        .ticket-stub::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.05) 100%);
+            border-radius: 0 10px 10px 0;
+        }
+
+        .ticket-content {
+            padding: 15px 20px 15px 15px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .ticket-brand {
+            color: #ffffff;
+            font-size: 0.6em;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 5px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+        }
+
+        .promo-label {
+            position: absolute;
+            top: 10px;
+            right: -10px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #000000;
+            padding: 5px 20px;
+            font-size: 0.7em;
+            font-weight: bold;
+            font-family: 'Bebas Neue', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transform: rotate(15deg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border: 2px solid #ffffff;
+            z-index: 3;
+            animation: labelPulse 2s infinite;
+        }
+
+        @keyframes labelPulse {
+            0%, 100% { transform: rotate(15deg) scale(1); }
+            50% { transform: rotate(15deg) scale(1.05); }
+        }
+
+        .ticket-shine {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.8s;
+            z-index: 1;
+        }
+
+        .ticket:hover .ticket-shine {
+            left: 100%;
+        }
+
+        .ticket:hover {
+            transform: translateY(-20px) scale(1.05) rotateY(5deg) rotateX(-5deg);
+            box-shadow: 0 25px 50px rgba(76, 175, 80, 0.5), 0 15px 35px rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+        }
+
+        .ticket:hover .ticket-stub {
+            background: linear-gradient(135deg, #f0f0f0 0%, #ffffff 100%);
+        }
+
+        .ticket h3 {
+            color: #ffffff;
+            margin: 0 0 5px 0;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .ticket p {
+            color: #ffffff;
+            font-size: 1.8em;
+            font-weight: 800;
+            text-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+            margin: 0;
+            letter-spacing: 2px;
+            position: relative;
+            z-index: 3;
+            animation: numberPulse 2s infinite;
+        }
+
+        @keyframes numberPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            animation: modalFadeIn 0.5s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: #ffffff;
+            margin: 5% auto;
+            padding: 25px 30px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 350px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 10px 30px rgba(0, 0, 0, 0.1);
+            animation: modalSlideIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                max-width: 280px;
+                padding: 15px 20px;
+                margin: 3% auto;
+                border-radius: 8px;
+            }
+
+            .modal-content h2 {
+                font-size: 1.8em !important;
+                margin-bottom: 15px !important;
+            }
+
+            .modal-content .step-item {
+                padding: 8px 12px !important;
+            }
+
+            .modal-content .step-item span {
+                font-size: 1.2em !important;
+                margin-right: 10px !important;
+                min-width: 20px !important;
+            }
+
+            .modal-content .step-item p {
+                font-size: 0.9em !important;
+            }
+
+            .modal-content h3 {
+                font-size: 1.2em !important;
+                margin-bottom: 15px !important;
+            }
+
+            .start-button {
+                padding: 12px 25px !important;
+                font-size: 1em !important;
+            }
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4CAF50 0%, #45a049 50%, #4CAF50 100%);
+            border-radius: 12px 12px 0 0;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            color: #666666;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .close:hover {
+            background: #4CAF50;
+            color: #ffffff;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .start-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+        }
+
+        .start-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 80%;
+            max-width: 400px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 auto 10px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%);
+            border-radius: 10px;
+            transition: width 1s ease-in-out;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: progressShine 2s infinite;
+        }
+
+        @keyframes progressShine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-text {
+            color: #ffffff;
+            font-size: 1.1em;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin: 0;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        @keyframes titlePulse {
+            0%, 100% {
+                transform: scale(1);
+                text-shadow: 0 5px 10px rgba(0, 0, 0, 0.7);
+            }
+            50% {
+                transform: scale(1.05);
+                text-shadow: 0 7px 15px rgba(0, 0, 0, 0.8);
+            }
+        }
+
+        @keyframes stepGlow {
+            0%, 100% {
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+                background: #ffffff;
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);
+                background: #f8f9fa;
+                transform: scale(1.02);
+            }
+        }
+
+        @keyframes buttonPulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            }
+        }
+
+        .creator-link {
+            animation: bounce 2s ease-in-out infinite;
+            display: inline-block;
+            transform-origin: center;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        } Todos los derechosrecervados nova51
+         creado por yeimar arley y 
+         faider asprilla
+    </style>
+</head>
+<body>
+    <marquee behavior="scroll" direction="left" scrollamount="4" style="color: #ffffff; font-family: 'Bebas Neue', sans-serif; font-size: 0.8em; background: linear-gradient(90deg, #000000 0%, #333333 100%); padding: 3px 10px; border-bottom: 1px solid #ffffff;">
+        ¡PARTICIPA EN LA RIFA MÁS GRANDE! • NÚMEROS LIMITADOS • ¡GANA 5 MILLONES! • SORTEO PROFESIONAL • ¡NO TE QUEDES FUERA!
+    </marquee>
+    <div class="header">
+        <h1>RIFFA DE 5 MILLONES </h1>
+    </div>
+
+    <div class="slider">
+        <div class="slides">
+            <div class="slide" style="background-image: url('https://lh3.googleusercontent.com/d/1N6Z-5SyVeMMHU8TyUTFnXCZL3DDvcD0N=s800'); background-size: cover; background-position: center;"></div>
+            <div class="slide" style="background-image: url('https://lh3.googleusercontent.com/d/1N6Z-5SyVeMMHU8TyUTFnXCZL3DDvcD0N=s800'); background-size: cover; background-position: center;"></div>
+            <div class="slide" style="background-image: url('https://lh3.googleusercontent.com/d/1N6Z-5SyVeMMHU8TyUTFnXCZL3DDvcD0N=s800'); background-size: cover; background-position: center;"></div>
+            <div class="slide" style="background-image: url('https://lh3.googleusercontent.com/d/1N6Z-5SyVeMMHU8TyUTFnXCZL3DDvcD0N=s800'); background-size: cover; background-position: center;"></div>
+        </div>
+    </div>
+
+    <div style="text-align: center; padding: 15px; background: linear-gradient(90deg, #000000 0%, #333333 100%); color: #ffffff; font-size: 1.5em; font-weight: bold; font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+        PARTICIPA Y GANA DISPONIBLE
+    </div>
+
+    <div style="text-align: center; padding: 15px; background: linear-gradient(90deg, #000000 0%, #333333 100%); color: #ffffff; font-size: 1.5em; font-weight: bold; font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+        NÚMEROS BENDITOS
+    </div>
+<br>
+
+    <!-- Progress Bar Section -->
+    <div style="padding: 12px 20px; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); margin: 0 10px; border-radius: 8px; box-shadow: 0 3px 12px rgba(0,0,0,0.2);">
+        <div style="text-align: center; margin-bottom: 8px;">
+            <h3 style="color: #ffffff; font-family: 'Bebas Neue', sans-serif; font-size: 1.1em; margin: 0; letter-spacing: 1px;">PROGRESO DE VENTAS</h3>
+            <!-- <p style="color: #cccccc; font-size: 0.7em; margin: 2px 0 0 0;">Números vendidos hasta ahora</p> -->
+        </div>
+        <div style="background: rgba(255,255,255,0.1); border-radius: 12px; height: 18px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">
+            <div id="progressFill" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width: 0%; height: 100%; background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%); border-radius: 12px; transition: width 1s ease-in-out; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation: progressShine 2s infinite;"></div>
+            </div>
+        </div>
+        <div style="display:flex; justify-content:center; gap:12px; align-items:center; margin-top:8px;">
+            <div style="color:#ffffff; font-size:0.9em;">Vendidos: <strong id="assigned">0</strong></div>
+            <div style="color:#cccccc; font-size:0.9em;">/</div>
+            <div style="color:#ffffff; font-size:0.9em;">Total: <strong id="total">2000</strong></div>
+            <div style="color: #4CAF50; font-size: 0.9em; font-weight: bold;">(<span id="percentage">0.0</span>% COMPLETADO)</div>
+        </div>
+    </div>
+
+    <div class="tickets">
+        <div class="ticket" style="animation-delay: 0s;">
+            <div class="ticket-stub"></div>
+            <div class="ticket-content">
+                <div class="promo-label">NÚMEROS BENDITOS</div>
+                <h3>Número Bendito</h3>
+                <p style="font-size: 0.9em; color: #ffffff; font-weight: 500; letter-spacing: 1px; margin: 8px 0;">Buena Suerte</p>
+                <div class="ticket-brand">familionesrifa</div>
+                <div class="ticket-shine"></div>
+            </div>
+        </div>
+        <div class="ticket" style="animation-delay: 0.2s;">
+            <div class="ticket-stub"></div>
+            <div class="ticket-content">
+                <div class="promo-label">NÚMEROS BENDITOS</div>
+                <h3>Número Bendito</h3>
+                <p style="font-size: 0.9em; color: #ffffff; font-weight: 500; letter-spacing: 1px; margin: 8px 0;">Buena Suerte</p>
+                <div class="ticket-brand">familionesrifa</div>
+                <div class="ticket-shine"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Section -->
+    <div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 20px 0 100px 0; border-radius: 20px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #2c3e50; font-family: 'Bebas Neue', sans-serif; font-size: 2em; margin-bottom: 20px; letter-spacing: 2px;">COMPRA TUS NÚMEROS AHORA</h2>
+        <p style="color: #495057; font-size: 1.1em; margin-bottom: 30px;">Paga de forma segura con PSE</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto;">
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+                <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 4 NÚMEROS</h3>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$25,000 COP</p>
+                <button onclick="showPurchaseModal('25000', 'Compra de 4 números de rifa', 4);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR CON PSE</button>
+            </div>
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+                <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 8 NÚMEROS</h3>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$53,000 COP</p>
+                <button onclick="showPurchaseModal('53000', 'Compra de 8 números de rifa', 8);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR CON PSE</button>
+            </div>
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+                <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 12 NÚMEROS</h3>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$81,000 COP</p>
+                <button onclick="showPurchaseModal('81000', 'Compra de 12 números de rifa', 12);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR CON PSE</button>
+            </div>
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+                <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 16 NÚMEROS</h3>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$109,000 COP</p>
+                <button onclick="showPurchaseModal('109000', 'Compra de 16 números de rifa', 16);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR CON PSE</button>
+            </div>
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+                <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 20 NÚMEROS</h3>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$137,000 COP</p>
+                <button onclick="showPurchaseModal('137000', 'Compra de 20 números de rifa', 20);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR CON PSE</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="previewModal" class="modal">
+        <div class="modal-content show">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div style="position: relative; z-index: 2;">
+                <h2 style="color: #2c3e50; margin-bottom: 20px; font-size: 2.2em; font-weight: 700; text-shadow: none; letter-spacing: 1px; text-transform: uppercase; line-height: 1.2; animation: titlePulse 3s infinite;">RIFA DE<br>5 MILLONES</h2>
+                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #dee2e6; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
+                    <h3 style="color: #495057; margin-bottom: 18px; font-size: 1.4em; font-weight: 600; text-align: center;">Guía Profesional para Participar</h3>
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <div class="step-item" style="display: flex; align-items: center; background: #ffffff; padding: 12px 15px; border-radius: 8px; border-left: 4px solid #4CAF50; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); animation: stepGlow 4s infinite; animation-delay: 0s;">
+                            <span style="color: #4CAF50; font-size: 1.4em; font-weight: 700; margin-right: 15px; min-width: 25px;">1.</span>
+                            <p style="color: #495057; margin: 0; font-size: 1em; font-weight: 500; line-height: 1.4;">Selecciona tus números favoritos de manera estratégica.</p>
+                        </div>
+                        <div class="step-item" style="display: flex; align-items: center; background: #ffffff; padding: 12px 15px; border-radius: 8px; border-left: 4px solid #4CAF50; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); animation: stepGlow 4s infinite; animation-delay: 1s;">
+                            <span style="color: #4CAF50; font-size: 1.4em; font-weight: 700; margin-right: 15px; min-width: 25px;">2.</span>
+                            <p style="color: #495057; margin: 0; font-size: 1em; font-weight: 500; line-height: 1.4;">Elige el paquete ideal: 4 números por $25,000 o más opciones disponibles.</p>
+                        </div>
+                        <div class="step-item" style="display: flex; align-items: center; background: #ffffff; padding: 12px 15px; border-radius: 8px; border-left: 4px solid #4CAF50; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); animation: stepGlow 4s infinite; animation-delay: 2s;">
+                            <span style="color: #4CAF50; font-size: 1.4em; font-weight: 700; margin-right: 15px; min-width: 25px;">3.</span>
+                            <p style="color: #495057; margin: 0; font-size: 1em; font-weight: 500; line-height: 1.4;">Completa el proceso de pago de forma segura y rápida.</p>
+                        </div>
+                        <div class="step-item" style="display: flex; align-items: center; background: #ffffff; padding: 12px 15px; border-radius: 8px; border-left: 4px solid #4CAF50; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); animation: stepGlow 4s infinite; animation-delay: 3s;">
+                            <span style="color: #4CAF50; font-size: 1.4em; font-weight: 700; margin-right: 15px; min-width: 25px;">4.</span>
+                            <p style="color: #495057; margin: 0; font-size: 1em; font-weight: 500; line-height: 1.4;">¡Únete a la emocionante rifa y gana 5 millones de pesos!</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 25px;">
+                    <button class="start-button" onclick="closeModal()">EMPEZAR A JUGAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to close the preview modal
+        function closeModal() {
+            document.getElementById('previewModal').style.display = 'none';
+        }
+
+        // Function to show purchase modal using ePayco checkout
+        function showPurchaseModal(amount, description, count) {
+            ePayco.checkout.configure({
+                key: '70b19a05a3f3374085061d1bfd386a8b',
+                test: false
+            });
+            ePayco.checkout.open({
+                name: "Rifa 5 Millones",
+                description: description,
+                invoice: "rifa_" + Date.now(),
+                currency: "COP",
+                amount: amount,
+                tax_base: "0",
+                tax: "0",
+                country: "co",
+                lang: "es",
+                external: "false",
+                response: "https://familiones.com/confirmation",
+                confirmation: "https://familiones.com/confirmation",
+                email_billing: "",
+                name_billing: "",
+                address_billing: "",
+                type_doc_billing: "",
+                mobilephone_billing: "",
+                number_doc_billing: ""
+            });
+        }
+
+        // Function to update progress bar and text from /progress endpoint
+        async function updateProgress() {
+            try {
+                const response = await fetch('/progress');
+                if (!response.ok) {
+                    throw new Error('Response not OK');
+                }
+                const data = await response.json();
+
+                const progressFill = document.getElementById('progressFill');
+                const percentageEl = document.getElementById('percentage');
+
+                const percentage = Number(data.percentage || 0).toFixed(1);
+
+                // Update UI (only percentage shown)
+                progressFill.style.width = percentage + '%';
+                progressFill.setAttribute('aria-valuenow', percentage);
+                percentageEl.textContent = percentage;
+
+            } catch (error) {
+                console.error('Error fetching progress:', error);
+            }
+        }
+
+        // Initialize progress at 0 and poll every 10 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ensure starting visuals show 0
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('percentage').textContent = '0.0';
+
+            // First fetch and then periodic updates
+            updateProgress();
+            setInterval(updateProgress, 10000); // every 10s
+        });
+    </script>
+
+    <!-- ENLACE AL FOOTER MODULARIZADO (consolidado estático) -->
+    <link rel="stylesheet" href="static/css/footer.css">
+    <div id="footer-container"></div>
+    <script>
+        // Cargar el footer consolidado desde static (asegura que los estilos se encuentren en static/css/footer.css)
+        fetch('static/footer.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('footer-container').innerHTML = html;
+            }).catch(err => {
+                console.error('No se pudo cargar footer consolidado:', err);
+            });
+    </script>
+</body>
+</html>

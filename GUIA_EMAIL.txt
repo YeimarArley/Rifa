@@ -1,0 +1,82 @@
+🧪 PRUEBA DE EMAIL - RIFA 5 MILLONES
+
+Para probar la configuración de email:
+
+1. CONFIGURA GMAIL PRIMERO:
+   - Ve a: https://myaccount.google.com/security
+   - Habilita 'Verificación en 2 pasos'
+   - Ve a 'Contraseñas de aplicaciones'
+   - Crea una para 'Correo' > 'Otro' (llámala 'Rifa')
+   - Copia la contraseña de 16 caracteres
+
+2. ACTUALIZA EL ARCHIVO .env:
+   - EMAIL_SENDER = tu-email-real@gmail.com
+   - EMAIL_PASSWORD = [la contraseña de aplicación]
+
+3. EJECUTA LA PRUEBA:
+   python3 -c "
+   import smtplib
+   from email.mime.text import MIMEText
+   from email.mime.multipart import MIMEMultipart
+   from dotenv import load_dotenv
+   import os
+   
+   load_dotenv()
+   sender_email = os.getenv('EMAIL_SENDER')
+   sender_password = os.getenv('EMAIL_PASSWORD')
+   smtp_server = os.getenv('EMAIL_SMTP_SERVER')
+   smtp_port = int(os.getenv('EMAIL_SMTP_PORT', 587))
+   
+   msg = MIMEMultipart()
+   msg['From'] = sender_email
+   msg['To'] = sender_email
+   msg['Subject'] = '✅ PRUEBA EXITOSA - Rifa 5 Millones'
+   
+   body = '''🎉 ¡Configuración de email funcionando!
+   
+   Si ves este email, la integración está lista para producción.
+   
+   ✅ Conexión SMTP: OK
+   ✅ Autenticación Gmail: OK
+   ✅ Envío de emails: OK
+   
+   ¡La rifa puede procesar pagos y enviar confirmaciones!
+   '''
+   
+   msg.attach(MIMEText(body, 'plain', 'utf-8'))
+   
+   server = smtplib.SMTP(smtp_server, smtp_port)
+   server.starttls()
+   server.login(sender_email, sender_password)
+   server.sendmail(sender_email, sender_email, text=msg.as_string())
+   server.quit()
+   
+   print('✅ Email enviado exitosamente!')
+   "
+
+INSTRUCCIONES DETALLADAS PARA GMAIL:
+====================================
+
+PASO 1: Verificación en 2 pasos
+- Ve a https://myaccount.google.com/security
+- En 'Iniciar sesión en Google', haz clic en 'Verificación en 2 pasos'
+- Si no está activada, actívala siguiendo los pasos
+
+PASO 2: Contraseña de aplicación
+- En la misma página de seguridad, busca 'Contraseñas de aplicaciones'
+- Haz clic en 'Contraseñas de aplicaciones'
+- Selecciona tu dispositivo (o 'Otro')
+- Elige 'Correo' como aplicación
+- Pon 'Rifa' como nombre personalizado
+- Gmail te dará una contraseña de 16 caracteres como: abcd-efgh-ijkl-mnop
+
+PASO 3: Actualizar .env
+- Abre el archivo .env en la carpeta Rifa
+- Cambia EMAIL_SENDER por tu email real
+- Cambia EMAIL_PASSWORD por la contraseña de aplicación
+
+PASO 4: Probar
+- Ejecuta el comando de prueba de arriba
+- Si funciona, ¡listo para producción!
+
+¿Necesitas ayuda con algún paso específico?
