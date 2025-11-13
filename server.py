@@ -16,12 +16,44 @@ from dotenv import load_dotenv
 from functools import wraps
 from flask_mail import Mail, Message
 import secrets
+from flask_talisman import Talisman
 
 # ==================== CONFIGURACIÓN INICIAL ====================
 load_dotenv()
 
 # Create Flask app PRIMERO
 app = Flask(__name__)
+
+# Forzar HTTPS y headers de seguridad
+if os.getenv('ENVIRONMENT') == 'production':
+    Talisman(app, 
+             force_https=True,
+             strict_transport_security=True,
+             content_security_policy={
+                 'default-src': ["'self'", 'https://checkout.epayco.co'],
+                 'script-src': ["'self'", "'unsafe-inline'", 'https://checkout.epayco.co'],
+                 'style-src': ["'self'", "'unsafe-inline'"],
+                 'img-src': ["'self'", 'data:', 'https:'],
+             })
+
+# Proteger archivos sensibles
+@app.before_request
+def block_sensitive_files():
+    """Bloquea acceso a archivos sensibles"""
+    blocked_extensions = ['.env', '.py', '.pyc', '.db', '.log', '.key']
+    blocked_dirs = ['scripts/', 'app/', '__pycache__/']
+    
+    path = request.path.lower()
+    
+    # Bloquear extensiones
+    if any(path.endswith(ext) for ext in blocked_extensions):
+        abort(403)
+    
+    # Bloquear directorios
+    if any(blocked_dir in path for blocked_dir in blocked_dirs):
+        # Permitir solo rutas públicas específicas
+        if not path.startswith('/static/') and not path.startswith('/templates/'):
+            abort(403)
 
 # ==================== CONFIGURACIÓN DE SEGURIDAD ====================
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
@@ -550,6 +582,16 @@ def index():
     except Exception as e:
         logger.error(f"Error rendering index.html: {e}")
         return f"Error loading page: {str(e)}", 500
+
+@app.route('/test')
+def test_page():
+    """Página de compras de prueba con valores pequeños"""
+    try:
+        return send_from_directory('templates', 'test_purchase.html')
+    except Exception as e:
+        logger.error(f"Error loading test page: {e}")
+        return f"Error: {str(e)}", 500
+
 
 
 @app.route('/<path:filename>')
@@ -1207,6 +1249,11 @@ def calculate_metrics(date_from=None, date_to=None):
         
         if result:
             amount_map = {
+                # Prueba
+                5000: '1 número (Test)',
+                10000: '2 números (Test)',
+                15000: '4 números (Test)',
+                # Producción
                 25000: '4 números',
                 53000: '8 números',
                 81000: '12 números',
@@ -1405,14 +1452,20 @@ def response():
 
 @app.route('/confirmation', methods=['POST'])
 def confirmation():
-    """Confirmación de pago de ePayco"""
+    """Confirmación de pago de ePayco - ACTUALIZADA para soportar pruebas"""
     data = request.form.to_dict()
-    logger.info(f"Confirmation received: {data}")
+    logger.info(f"📥 Confirmation received: {data}")
 
-    signature = request.headers.get('X-Signature')
-    if not verify_signature(data, signature):
-        logger.warning("Invalid signature")
-        return jsonify({'status': 'error', 'message': 'Invalid signature'}), 400
+    # En desarrollo, permitir sin firma para testing
+    ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+    
+    if ENVIRONMENT == 'production':
+        signature = request.headers.get('X-Signature')
+        if not verify_signature(data, signature):
+            logger.warning("❌ Invalid signature")
+            return jsonify({'status': 'error', 'message': 'Invalid signature'}), 400
+    else:
+        logger.info("⚠️ DEVELOPMENT MODE: Signature verification skipped")
 
     ref_payco = data.get('x_ref_payco')
     transaction_state = data.get('x_transaction_state')
@@ -1420,18 +1473,40 @@ def confirmation():
     currency = data.get('x_currency')
     customer_email = data.get('x_customer_email')
 
+    # Detectar si es compra de prueba
+    is_test_purchase = ref_payco and ref_payco.startswith('test_')
+    
+    if is_test_purchase:
+        logger.info(f"🧪 TEST PURCHASE detected: {ref_payco}")
+
     if transaction_state == 'Aceptada':
         try:
             amount_float = float(amount)
+            
+            # MAPEO ACTUALIZADO: Incluye valores de prueba
             num_tickets_map = {
+                # Paquetes de prueba
+                5000: 1,     # Test Mini
+                10000: 2,    # Test Normal
+                15000: 4,    # Test Plus
+                # Paquetes de producción
                 25000: 4,
                 53000: 8,
                 81000: 12,
                 109000: 16,
                 137000: 20
             }
-            num_tickets = num_tickets_map.get(int(amount_float), 4)
+            
+            num_tickets = num_tickets_map.get(int(amount_float))
+            
+            if not num_tickets:
+                logger.error(f"❌ Amount not recognized: {amount_float}")
+                # Calcular basado en proporción (fallback)
+                num_tickets = max(1, int(amount_float / 6250))
+                logger.info(f"🔄 Using fallback calculation: {num_tickets} tickets")
 
+            logger.info(f"🎯 Assigning {num_tickets} numbers for ${amount_float} COP")
+            
             numbers = assign_numbers(num_tickets)
             
             client_info = {
@@ -1444,21 +1519,63 @@ def confirmation():
                 'payment_method': data.get('x_type_payment', ''),
                 'bank_name': data.get('x_bank_name', ''),
                 'franchise': data.get('x_franchise', ''),
-                'response_code': data.get('x_response', '')
+                'response_code': data.get('x_response', ''),
             }
+            
+            # Agregar nota si es compra de prueba
+            if is_test_purchase:
+                client_info['notes'] = f'TEST PURCHASE - Amount: ${amount_float}'
             
             save_purchase(ref_payco, amount_float, customer_email, numbers, **client_info)
 
-            logger.info(f"Purchase confirmed: {ref_payco}, numbers: {numbers}")
+            # Enviar email de confirmación
+            try:
+                send_purchase_confirmation_email(
+                    customer_email=customer_email,
+                    customer_name=client_info['full_name'],
+                    numbers=numbers,
+                    amount=amount_float,
+                    invoice_id=ref_payco
+                )
+            except Exception as email_error:
+                logger.error(f"❌ Error sending email: {email_error}")
+
+            logger.info(f"✅ Purchase confirmed: {ref_payco}, numbers: {numbers}")
+            
+            if is_test_purchase:
+                logger.info(f"🧪 TEST PURCHASE COMPLETED: {num_tickets} numbers for ${amount_float}")
+            
             return jsonify({'status': 'success'}), 200
 
         except Exception as e:
-            logger.error(f"Error processing purchase: {e}")
+            logger.error(f"❌ Error processing purchase: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'status': 'error', 'message': str(e)}), 500
     else:
-        logger.info(f"Payment not accepted: {transaction_state}")
+        logger.info(f"⏳ Payment not accepted: {transaction_state}")
         return jsonify({'status': 'pending'}), 200
 
+def get_package_info(amount):
+    """Obtiene información del paquete según el monto"""
+    packages = {
+        # Prueba
+        5000: {"name": "Test Mini", "numbers": 1, "type": "test"},
+        10000: {"name": "Test Normal", "numbers": 2, "type": "test"},
+        15000: {"name": "Test Plus", "numbers": 4, "type": "test"},
+        # Producción
+        25000: {"name": "4 Números", "numbers": 4, "type": "production"},
+        53000: {"name": "8 Números", "numbers": 8, "type": "production"},
+        81000: {"name": "12 Números", "numbers": 12, "type": "production"},
+        109000: {"name": "16 Números", "numbers": 16, "type": "production"},
+        137000: {"name": "20 Números", "numbers": 20, "type": "production"}
+    }
+    
+    return packages.get(int(amount), {
+        "name": "Custom",
+        "numbers": max(1, int(amount / 6250)),
+        "type": "custom"
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))

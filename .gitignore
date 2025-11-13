@@ -1,1 +1,43 @@
+# Archivos de entorno
 .env
+.env.local
+.env.production
+.env.development
+
+# Base de datos local
+*.db
+*.sqlite
+*.sqlite3
+rifa.db
+
+# Credenciales
+credentials.txt
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backups
+backup_*.txt
+backup_*.sql
+
+# OS
+.DS_Store
+Thumbs.db
