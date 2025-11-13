@@ -15,33 +15,920 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 from dotenv import load_dotenv
 from functools import wraps
 from flask_mail import Mail, Message
+import secrets
+
+# ==================== CONFIGURACIÓN INICIAL ====================
+load_dotenv()
+
+# Create Flask app PRIMERO
+app = Flask(__name__)
+
+# ==================== CONFIGURACIÓN DE SEGURIDAD ====================
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=2)
+)
+
+# Clave de admin de simulación
+ADMIN_SIM_KEY = os.getenv('ADMIN_SIM_KEY', secrets.token_urlsafe(32))
+
+# ==================== CONFIGURACIÓN DE BASE DE DATOS ====================
+from app import db as app_db
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+try:
+    app_db.init_db()
+except Exception as e:
+    logger.error(f"Error initializing database: {e}")
+    import traceback
+    traceback.print_exc()
+
+# ==================== CONFIGURACIÓN DE PAGOS ====================
+EPAYCO_PUBLIC_KEY = os.getenv('EPAYCO_PUBLIC_KEY', '70b19a05a3f3374085061d1bfd386a8b')
+EPAYCO_PRIVATE_KEY = os.getenv('EPAYCO_PRIVATE_KEY', 'your_private_key_here')
+
+# ==================== CONFIGURACIÓN DE EMAIL ====================
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
+
+if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+    logger.warning("⚠️ Credenciales de email no configuradas")
+
+mail = Mail(app)
+
+# ==================== URLs ====================
+BASE_URL = os.getenv('BASE_URL', 'https://familiones.com')
+RESPONSE_URL = os.getenv('RESPONSE_URL', 'https://familiones.com/confirmation')
+CONFIRMATION_URL = os.getenv('CONFIRMATION_URL', 'https://familiones.com/confirmation')
+
+# ==================== ALMACENAMIENTO DE TOKENS ====================
+password_reset_tokens = {}
 
 
-# ========== AGREGAR ESTA FUNCIÓN EN server.py (después de la configuración de Mail) ==========
+# ==================== FUNCIONES DE AUTENTICACIÓN ====================
 
-def send_purchase_confirmation_email(customer_email, customer_name, numbers, amount, invoice_id):
-    """
-    Envía email de confirmación de compra con los números asignados
-    """
-    try:
-        logger.info(f"📧 Preparando email para {customer_email}...")
+def hash_password(password):
+    """Hashea una contraseña con SHA256 + SALT"""
+    salt = os.getenv('PASSWORD_SALT', 'rifa_salt_2025')
+    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+
+
+def verify_password(password, password_hash):
+    """Verifica una contraseña contra su hash"""
+    return hash_password(password) == password_hash
+
+
+def login_required(f):
+    """Decorador para proteger rutas administrativas"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            logger.warning(f"⚠️ Intento de acceso no autorizado a: {request.path} desde IP: {request.remote_addr}")
+            return redirect(url_for('admin_login', next=request.path))
         
-        # Verificar configuración
+        last_activity = session.get('last_activity')
+        if last_activity:
+            last_activity_time = datetime.fromisoformat(last_activity)
+            if datetime.now() - last_activity_time > timedelta(hours=2):
+                logger.info("⏰ Sesión expirada por inactividad")
+                session.clear()
+                return redirect(url_for('admin_login', next=request.path, expired='1'))
+        
+        session['last_activity'] = datetime.now().isoformat()
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_api_key_required(f):
+    """Decorador para proteger APIs administrativas"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-Admin-Key')
+        if not api_key:
+            api_key = request.form.get('key')
+        
+        if not api_key or api_key != ADMIN_SIM_KEY:
+            logger.warning(f"⚠️ Intento de acceso API no autorizado desde IP: {request.remote_addr}")
+            abort(403, description="API key inválida o faltante")
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ==================== FUNCIONES DE RECUPERACIÓN DE CONTRASEÑA ====================
+
+def generate_reset_token():
+    """Genera un token seguro de recuperación"""
+    return secrets.token_urlsafe(32)
+
+
+def send_password_reset_email(email, token, admin_id):
+    """Envía email con link de recuperación de contraseña"""
+    try:
+        logger.info(f"📧 Enviando email de recuperación a {email}...")
+        
         if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
             logger.warning("⚠️ Credenciales de email no configuradas")
             return False
         
-        # Crear mensaje
+        reset_link = f"{BASE_URL}/admin/reset_password/{token}"
+        
+        msg = Message(
+            subject='🔐 Recuperación de Contraseña - Rifa 5 Millones',
+            recipients=[email],
+            sender=app.config['MAIL_DEFAULT_SENDER']
+        )
+        
+        msg.html = f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 20px;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background-color: #ffffff;
+                    border-radius: 10px;
+                    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+                    overflow: hidden;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 28px;
+                }}
+                .content {{
+                    padding: 30px;
+                }}
+                .alert-box {{
+                    background: #fff3cd;
+                    border-left: 4px solid #ffc107;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border-radius: 5px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 15px 40px;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    margin: 20px 0;
+                    font-weight: bold;
+                    font-size: 16px;
+                }}
+                .footer {{
+                    background-color: #f8f8f8;
+                    padding: 20px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #777;
+                }}
+                .security-note {{
+                    background: #f8d7da;
+                    border-left: 4px solid #dc3545;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border-radius: 5px;
+                    font-size: 14px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div style="font-size: 50px;">🔐</div>
+                    <h1>Recuperación de Contraseña</h1>
+                </div>
+                
+                <div class="content">
+                    <p>Hola,</p>
+                    
+                    <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de administrador.</p>
+                    
+                    <div class="alert-box">
+                        <strong>⏰ Este enlace expira en 30 minutos</strong>
+                    </div>
+                    
+                    <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+                    
+                    <center>
+                        <a href="{reset_link}" class="button">Restablecer Contraseña</a>
+                    </center>
+                    
+                    <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                        Si el botón no funciona, copia y pega este enlace en tu navegador:<br>
+                        <a href="{reset_link}" style="color: #667eea; word-break: break-all;">{reset_link}</a>
+                    </p>
+                    
+                    <div class="security-note">
+                        <strong>🚨 ¿No solicitaste este cambio?</strong><br>
+                        Si no fuiste tú quien solicitó este cambio, ignora este email. 
+                        Tu contraseña permanecerá segura.
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <p><strong>Rifa 5 Millones - Panel Administrativo</strong></p>
+                    <p>Este es un correo automático de seguridad, por favor no respondas a este mensaje.</p>
+                    <p>© 2025 Rifa 5 Millones. Todos los derechos reservados.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg.body = f"""
+        Recuperación de Contraseña - Rifa 5 Millones
+        
+        Hola,
+        
+        Hemos recibido una solicitud para restablecer tu contraseña.
+        
+        Haz clic en el siguiente enlace para crear una nueva contraseña:
+        {reset_link}
+        
+        ⏰ Este enlace expira en 30 minutos.
+        
+        🚨 Si no solicitaste este cambio, ignora este email.
+        
+        Rifa 5 Millones - Panel Administrativo
+        """
+        
+        mail.send(msg)
+        logger.info(f"✅ Email de recuperación enviado a {email}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de recuperación a {email}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def cleanup_expired_tokens():
+    """Limpia tokens expirados"""
+    now = datetime.now()
+    expired_tokens = [
+        token for token, data in password_reset_tokens.items()
+        if now > data['expires_at']
+    ]
+    for token in expired_tokens:
+        del password_reset_tokens[token]
+        logger.info(f"🗑️ Token expirado eliminado")
+
+
+# ==================== RUTAS DE AUTENTICACIÓN ====================
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    """Login de administrador con EMAIL"""
+    if session.get('admin_logged_in'):
+        return redirect('/database')
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        
+        # Rate limiting básico
+        failed_attempts = session.get('failed_login_attempts', 0)
+        if failed_attempts >= 5:
+            logger.warning(f"🚨 Cuenta bloqueada temporalmente: {email}")
+            return render_template('admin_login.html', 
+                                 error="Demasiados intentos fallidos. Espera 15 minutos.")
+        
+        # Buscar usuario por email en base de datos
+        try:
+            user = app_db.run_query(
+                "SELECT id, email, password_hash, is_active FROM admin_users WHERE LOWER(email) = LOWER(%s)",
+                params=(email,),
+                fetchone=True
+            )
+            
+            if user:
+                user_id = user[0]
+                db_password_hash = user[2]
+                is_active = user[3]
+                
+                # Verificar si está activo
+                if not is_active:
+                    logger.warning(f"❌ Usuario inactivo intentó login: {email}")
+                    return render_template('admin_login.html', 
+                                         error="Cuenta desactivada. Contacta al administrador.")
+                
+                # Verificar contraseña
+                if verify_password(password, db_password_hash):
+                    # Login exitoso
+                    session.clear()
+                    session['admin_logged_in'] = True
+                    session['admin_id'] = user_id
+                    session['admin_email'] = email
+                    session['last_activity'] = datetime.now().isoformat()
+                    session['login_time'] = datetime.now().isoformat()
+                    session.permanent = True
+                    
+                    logger.info(f"✅ Admin login exitoso: {email} desde IP: {request.remote_addr}")
+                    
+                    next_page = request.args.get('next', '/database')
+                    return redirect(next_page)
+            
+            # Login fallido
+            session['failed_login_attempts'] = failed_attempts + 1
+            logger.warning(f"❌ Intento de login fallido: {email} desde IP: {request.remote_addr}")
+            return render_template('admin_login.html', 
+                                 error="Credenciales incorrectas")
+            
+        except Exception as e:
+            logger.error(f"Error en login: {e}")
+            import traceback
+            traceback.print_exc()
+            return render_template('admin_login.html', 
+                                 error="Error del sistema. Intenta nuevamente.")
+    
+    # GET request
+    expired = request.args.get('expired')
+    error = "Tu sesión ha expirado. Por favor, inicia sesión nuevamente." if expired else None
+    
+    return render_template('admin_login.html', error=error)
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    """Logout de administrador"""
+    email = session.get('admin_email', 'Desconocido')
+    logger.info(f"👋 Admin logout: {email}")
+    session.clear()
+    return redirect('/')
+
+
+@app.route('/admin/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """Página de solicitud de recuperación de contraseña"""
+    if session.get('admin_logged_in'):
+        return redirect('/database')
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        # Validar formato de email
+        if not email or '@' not in email:
+            return render_template('forgot_password.html', 
+                                 error="Email inválido")
+        
+        # Buscar usuario por email
+        try:
+            user = app_db.run_query(
+                "SELECT id, email FROM admin_users WHERE LOWER(email) = LOWER(%s) AND is_active = TRUE",
+                params=(email,),
+                fetchone=True
+            )
+            
+            if user:
+                user_id = user[0]
+                
+                # Generar token
+                token = generate_reset_token()
+                expires_at = datetime.now() + timedelta(minutes=30)
+                
+                # Almacenar token
+                password_reset_tokens[token] = {
+                    'user_id': user_id,
+                    'email': email,
+                    'created_at': datetime.now(),
+                    'expires_at': expires_at,
+                    'used': False
+                }
+                
+                # Enviar email
+                email_sent = send_password_reset_email(email, token, user_id)
+                
+                if email_sent:
+                    logger.info(f"🔐 Token de recuperación generado para {email} - IP: {request.remote_addr}")
+                else:
+                    logger.error(f"❌ Error al enviar email de recuperación")
+            else:
+                logger.warning(f"⚠️ Intento de recuperación con email no registrado: {email}")
+            
+            # Por seguridad, siempre mostrar mensaje genérico
+            return render_template('forgot_password.html', 
+                                 success="Si el email está registrado, recibirás instrucciones para restablecer tu contraseña.")
+            
+        except Exception as e:
+            logger.error(f"Error en forgot_password: {e}")
+            return render_template('forgot_password.html', 
+                                 error="Error del sistema. Intenta nuevamente.")
+    
+    # GET request
+    return render_template('forgot_password.html')
+
+
+@app.route('/admin/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Página de reseteo de contraseña con token"""
+    cleanup_expired_tokens()
+    
+    # Validar token
+    if token not in password_reset_tokens:
+        logger.warning(f"⚠️ Intento de uso de token inválido desde IP: {request.remote_addr}")
+        return render_template('reset_password.html', 
+                             error="Token inválido o expirado. Solicita un nuevo enlace de recuperación.",
+                             token_invalid=True)
+    
+    token_data = password_reset_tokens[token]
+    
+    # Verificar expiración
+    if datetime.now() > token_data['expires_at']:
+        del password_reset_tokens[token]
+        logger.warning(f"⏰ Token expirado usado desde IP: {request.remote_addr}")
+        return render_template('reset_password.html', 
+                             error="Este enlace ha expirado. Solicita un nuevo enlace de recuperación.",
+                             token_invalid=True)
+    
+    # Verificar si ya fue usado
+    if token_data['used']:
+        logger.warning(f"⚠️ Intento de reutilizar token desde IP: {request.remote_addr}")
+        return render_template('reset_password.html', 
+                             error="Este enlace ya fue utilizado. Solicita un nuevo enlace si lo necesitas.",
+                             token_invalid=True)
+    
+    if request.method == 'POST':
+        new_password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validar contraseñas
+        errors = []
+        
+        if not new_password:
+            errors.append("La contraseña es obligatoria")
+        
+        if len(new_password) < 8:
+            errors.append("La contraseña debe tener al menos 8 caracteres")
+        
+        if new_password != confirm_password:
+            errors.append("Las contraseñas no coinciden")
+        
+        if not any(c.isupper() for c in new_password):
+            errors.append("La contraseña debe contener al menos una mayúscula")
+        
+        if not any(c.islower() for c in new_password):
+            errors.append("La contraseña debe contener al menos una minúscula")
+        
+        if not any(c.isdigit() for c in new_password):
+            errors.append("La contraseña debe contener al menos un número")
+        
+        if errors:
+            return render_template('reset_password.html', 
+                                 errors=errors, 
+                                 token=token)
+        
+        # Hashear nueva contraseña
+        new_password_hash = hash_password(new_password)
+        
+        # Actualizar en base de datos
+        try:
+            app_db.run_query(
+                "UPDATE admin_users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                params=(new_password_hash, token_data['user_id']),
+                commit=True
+            )
+            
+            # Marcar token como usado
+            password_reset_tokens[token]['used'] = True
+            
+            logger.info(f"✅ Contraseña actualizada exitosamente para {token_data['email']} - IP: {request.remote_addr}")
+            
+            # Limpiar sesiones activas
+            session.clear()
+            
+            return render_template('reset_password.html', 
+                                 success=True,
+                                 token_invalid=True)
+            
+        except Exception as e:
+            logger.error(f"❌ Error actualizando contraseña: {e}")
+            import traceback
+            traceback.print_exc()
+            return render_template('reset_password.html', 
+                                 error="Error al actualizar la contraseña. Intenta nuevamente.",
+                                 token=token)
+    
+    # GET request
+    return render_template('reset_password.html', token=token)
+
+
+# ==================== RUTAS PÚBLICAS ====================
+
+@app.route('/')
+def index():
+    """Página principal"""
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error rendering index.html: {e}")
+        return f"Error loading page: {str(e)}", 500
+
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """Servir archivos estáticos"""
+    return send_from_directory('.', filename)
+
+
+@app.route('/progress')
+def progress():
+    """API de progreso"""
+    total_numbers = 2000
+    assigned_count = 0
+    try:
+        assigned_count = app_db.count_assigned_numbers()
+    except Exception as e:
+        logger.error(f"Error counting assigned numbers: {e}")
+
+    percentage = 0.0
+    try:
+        percentage = (assigned_count / total_numbers) * 100
+    except Exception:
+        percentage = 0.0
+
+    return jsonify({
+        'assigned': int(assigned_count or 0),
+        'total': total_numbers,
+        'percentage': round(percentage, 1)
+    })
+
+
+@app.route('/api/blessed_numbers_status')
+def api_blessed_numbers_status():
+    """API de números benditos"""
+    try:
+        config = get_blessed_numbers_config()
+        
+        now = datetime.now()
+        visible = config['visible']
+        show_date = None
+        
+        if config['scheduled_date'] and not visible:
+            try:
+                scheduled = datetime.fromisoformat(config['scheduled_date'])
+                if now >= scheduled:
+                    visible = True
+                    save_blessed_numbers_config(True, config['scheduled_date'], config['numbers'])
+                else:
+                    show_date = scheduled.strftime('%d/%m/%Y %H:%M')
+            except Exception as e:
+                logger.error(f"Error parsing scheduled date: {e}")
+        
+        return jsonify({
+            'visible': visible,
+            'scheduled_date': config['scheduled_date'],
+            'show_date': show_date,
+            'numbers': config['numbers'] if (visible and config['numbers']) else [],
+            'has_numbers': bool(config['numbers'])
+        })
+    except Exception as e:
+        logger.error(f"Error in blessed numbers status: {e}")
+        return jsonify({
+            'visible': False, 
+            'numbers': [], 
+            'has_numbers': False
+        })
+
+
+# ==================== RUTAS PROTEGIDAS ====================
+
+@app.route('/database')
+@login_required
+def database():
+    """Panel de administración"""
+    try:
+        search_query = request.args.get('search', '').strip()
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        status_filter = request.args.get('status', '')
+        
+        query = "SELECT * FROM purchases WHERE 1=1"
+        params = []
+        
+        if search_query:
+            query += """ AND (
+                LOWER(full_name) LIKE LOWER(%s) OR 
+                LOWER(email) LIKE LOWER(%s) OR 
+                LOWER(phone) LIKE LOWER(%s) OR 
+                LOWER(document_number) LIKE LOWER(%s)
+            )"""
+            search_pattern = f"%{search_query}%"
+            params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
+        
+        if date_from:
+            query += " AND created_at >= %s"
+            params.append(date_from)
+        
+        if date_to:
+            query += " AND created_at <= %s"
+            params.append(date_to)
+        
+        if status_filter:
+            query += " AND status = %s"
+            params.append(status_filter)
+        
+        query += " AND (status != 'deleted' OR status IS NULL)"
+        query += " ORDER BY created_at DESC LIMIT 100"
+        
+        purchases = app_db.run_query(query, params=tuple(params) if params else None, fetchall=True) or []
+        metrics = calculate_metrics(date_from, date_to)
+        table_rows = generate_table_rows(purchases)
+        
+        return render_template('admin_database.html',
+                             purchases=purchases,
+                             table_rows=table_rows,
+                             metrics=metrics,
+                             search_query=search_query,
+                             date_from=date_from,
+                             date_to=date_to,
+                             status_filter=status_filter)
+    
+    except Exception as e:
+        logger.error(f"Error en endpoint /database: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"<h1>Error en Base de Datos</h1><pre>{str(e)}</pre>", 500
+
+
+@app.route('/admin/blessed_numbers', methods=['GET', 'POST'])
+@login_required
+def admin_blessed_numbers():
+    """Panel de números benditos"""
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'save':
+            visible = request.form.get('visible') == 'on'
+            scheduled_date = request.form.get('scheduled_date') or None
+            number1 = request.form.get('number1', '').strip()
+            number2 = request.form.get('number2', '').strip()
+            
+            errors = []
+            numbers = []
+            
+            if number1:
+                try:
+                    num1 = int(number1)
+                    if 1 <= num1 <= 2000:
+                        numbers.append(num1)
+                    else:
+                        errors.append("El número 1 debe estar entre 1 y 2000")
+                except ValueError:
+                    errors.append("El número 1 debe ser un entero válido")
+            
+            if number2:
+                try:
+                    num2 = int(number2)
+                    if 1 <= num2 <= 2000:
+                        if num2 not in numbers:
+                            numbers.append(num2)
+                        else:
+                            errors.append("Los números no pueden ser iguales")
+                    else:
+                        errors.append("El número 2 debe estar entre 1 y 2000")
+                except ValueError:
+                    errors.append("El número 2 debe ser un entero válido")
+            
+            if errors:
+                config = get_blessed_numbers_config()
+                return render_template('admin_blessed_numbers.html', 
+                                     config=config, 
+                                     errors=errors)
+            
+            save_blessed_numbers_config(visible, scheduled_date, numbers if numbers else None)
+            return redirect('/admin/blessed_numbers?success=1')
+        
+        elif action == 'delete':
+            save_blessed_numbers_config(False, None, None)
+            return redirect('/admin/blessed_numbers?deleted=1')
+    
+    config = get_blessed_numbers_config()
+    success = request.args.get('success')
+    deleted = request.args.get('deleted')
+    
+    return render_template('admin_blessed_numbers.html', 
+                         config=config, 
+                         success=success,
+                         deleted=deleted)
+
+
+@app.route('/edit_purchase/<int:purchase_id>', methods=['GET', 'POST'])
+@login_required
+def edit_purchase(purchase_id):
+    """Editar compra"""
+    if request.method == 'POST':
+        invoice_id = request.form['invoice_id']
+        amount = request.form['amount']
+        email = request.form['email']
+        numbers = request.form['numbers']
+        status = request.form['status']
+
+        conn = app_db.get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            UPDATE purchases
+            SET invoice_id = %s, amount = %s, email = %s, numbers = %s, status = %s
+            WHERE id = %s
+        """, (invoice_id, amount, email, numbers, status, purchase_id))
+        conn.commit()
+        conn.close()
+
+        logger.info(f"✏️ Compra {purchase_id} editada por {session.get('admin_email')}")
+        return redirect('/database')
+
+    purchase = app_db.run_query("SELECT * FROM purchases WHERE id = %s", params=(purchase_id,), fetchone=True)
+
+    if not purchase:
+        abort(404, description="Compra no encontrada")
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Editar Compra - Rifa</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }}
+            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }}
+            .form-group {{ margin-bottom: 15px; }}
+            label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+            input, select {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }}
+            .btn {{ padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }}
+            .btn-save {{ background-color: #4CAF50; color: white; }}
+            .btn-cancel {{ background-color: #f44336; color: white; text-decoration: none; display: inline-block; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>✏️ Editar Compra</h1>
+            <form method="POST">
+                <div class="form-group">
+                    <label>Referencia:</label>
+                    <input type="text" name="invoice_id" value="{purchase[1]}" required>
+                </div>
+                <div class="form-group">
+                    <label>Monto:</label>
+                    <input type="number" name="amount" value="{purchase[2]}" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" name="email" value="{purchase[3]}" required>
+                </div>
+                <div class="form-group">
+                    <label>Números:</label>
+                    <input type="text" name="numbers" value="{purchase[4]}" required>
+                </div>
+                <div class="form-group">
+                    <label>Estado:</label>
+                    <select name="status">
+                        <option value="pending" {'selected' if purchase[5] == 'pending' else ''}>Pendiente</option>
+                        <option value="confirmed" {'selected' if purchase[5] == 'confirmed' else ''}>Confirmado</option>
+                        <option value="cancelled" {'selected' if purchase[5] == 'cancelled' else ''}>Cancelado</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-save">Guardar</button>
+                <a href="/database" class="btn btn-cancel">Cancelar</a>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
+
+
+@app.route('/delete_purchase/<int:purchase_id>')
+@login_required
+def delete_purchase(purchase_id):
+    """Eliminar compra"""
+    purchase = app_db.run_query("SELECT numbers FROM purchases WHERE id = %s", params=(purchase_id,), fetchone=True)
+
+    if purchase:
+        numbers_str = purchase[0] if isinstance(purchase, (list, tuple)) else purchase
+        if numbers_str:
+            numbers = [int(n.strip()) for n in numbers_str.split(',')]
+            for number in numbers:
+                app_db.run_query("DELETE FROM assigned_numbers WHERE number = %s", params=(number,), commit=True)
+
+        app_db.run_query("DELETE FROM purchases WHERE id = %s", params=(purchase_id,), commit=True)
+        logger.info(f"🗑️ Compra {purchase_id} eliminada por {session.get('admin_email')}")
+    
+    return redirect('/database')
+
+
+@app.route('/admin/simulate_purchase', methods=['POST'])
+@admin_api_key_required
+def simulate_purchase():
+    """Simular compra"""
+    try:
+        amount = int(request.form.get('amount', 4))
+        email = request.form.get('email', 'test@demo.com')
+        customer_name = request.form.get('name', 'Cliente de Prueba')
+        
+        logger.info(f"🎲 Simulación iniciada por: {request.remote_addr}")
+        
+        numbers = assign_numbers(amount)
+        
+        if not numbers:
+            logger.error("❌ No hay números disponibles")
+            return jsonify({
+                "status": "error",
+                "message": "Not enough numbers available"
+            }), 400
+        
+        invoice_id = f"sim_{uuid.uuid4().hex[:12]}"
+        amount_value = amount * 6250
+        
+        saved = save_purchase(
+            invoice_id=invoice_id,
+            amount=amount_value,
+            email=email,
+            numbers=numbers,
+            full_name=customer_name
+        )
+        
+        if not saved:
+            logger.error("❌ Error guardando en base de datos")
+            return jsonify({
+                "status": "error",
+                "message": "Database error - check server logs"
+            }), 500
+        
+        try:
+            email_sent = send_purchase_confirmation_email(
+                customer_email=email,
+                customer_name=customer_name,
+                numbers=numbers,
+                amount=amount_value,
+                invoice_id=invoice_id
+            )
+        except Exception as email_error:
+            logger.error(f"❌ Error enviando email: {email_error}")
+            email_sent = False
+        
+        logger.info(f"✅ Simulación completada: {invoice_id}")
+        return jsonify({
+            "status": "ok",
+            "invoice_id": invoice_id,
+            "numbers": numbers,
+            "email_sent": email_sent
+        })
+            
+    except Exception as e:
+        logger.error(f"💥 Error en simulate_purchase: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": f"Server error: {str(e)}"
+        }), 500
+
+
+# ==================== FUNCIONES AUXILIARES ====================
+
+def send_purchase_confirmation_email(customer_email, customer_name, numbers, amount, invoice_id):
+    """Envía email de confirmación de compra"""
+    try:
+        logger.info(f"📧 Preparando email para {customer_email}...")
+        
+        if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+            logger.warning("⚠️ Credenciales de email no configuradas")
+            return False
+        
         msg = Message(
             subject='✅ ¡Confirmación de Compra - Rifa 5 Millones! 🎉',
             recipients=[customer_email],
             sender=app.config['MAIL_DEFAULT_SENDER']
         )
         
-        # Formatear los números
         numbers_formatted = ', '.join([str(num) for num in numbers])
         
-        # Crear el cuerpo del email en HTML
         msg.html = f"""
         <!DOCTYPE html>
         <html lang="es">
@@ -184,7 +1071,6 @@ def send_purchase_confirmation_email(customer_email, customer_name, numbers, amo
         </html>
         """
         
-        # Versión de texto plano (fallback)
         msg.body = f"""
         ¡Compra Confirmada!
         
@@ -206,7 +1092,6 @@ def send_purchase_confirmation_email(customer_email, customer_name, numbers, amo
         Rifa 5 Millones
         """
         
-        # Enviar el email
         mail.send(msg)
         logger.info(f"✅ Email enviado exitosamente a {customer_email}")
         return True
@@ -217,107 +1102,6 @@ def send_purchase_confirmation_email(customer_email, customer_name, numbers, amo
         traceback.print_exc()
         return False
 
-# Load environment variables
-load_dotenv()
-
-# Create Flask app
-app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'change-this-in-production-super-secret-key')
-
-# Clave simple para admin de simulación
-ADMIN_SIM_KEY = os.getenv('ADMIN_SIM_KEY', 'CLAVEADMIN')
-
-# Use centralized DB module
-from app import db as app_db
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Initialize database
-try:
-    app_db.init_db()
-except Exception as e:
-    logger.error(f"Error initializing database: {e}")
-    import traceback
-    traceback.print_exc()
-
-# ePayco configuration
-EPAYCO_PUBLIC_KEY = os.getenv('EPAYCO_PUBLIC_KEY', '70b19a05a3f3374085061d1bfd386a8b')
-EPAYCO_PRIVATE_KEY = os.getenv('EPAYCO_PRIVATE_KEY', 'your_private_key_here')
-
-# Email configuration
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))  # 587 por defecto
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
-app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true'
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
-
-# Validar configuración
-if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-    logger.warning("⚠️ Credenciales de email no configuradas")
-
-# Inicializar Mail
-mail = Mail(app)
-
-# URLs
-BASE_URL = os.getenv('BASE_URL', 'https://k-psico.com')
-RESPONSE_URL = os.getenv('RESPONSE_URL', 'https://familiones.com/confirmation')
-CONFIRMATION_URL = os.getenv('CONFIRMATION_URL', 'https://familiones.com/confirmation')
-
-# Admin credentials
-ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH', hashlib.sha256('admin123'.encode()).hexdigest())
-
-
-# ==================== AUTHENTICATION ====================
-
-def login_required(f):
-    """Decorador para proteger rutas que requieren autenticación"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
-            return redirect(url_for('admin_login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def hash_password(password):
-    """Hashea una contraseña con SHA256"""
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
-@app.route('/admin/login', methods=['GET', 'POST'])
-def admin_login():
-    """Login de administrador"""
-    if request.method == 'POST':
-        username = request.form.get('username', '')
-        password = request.form.get('password', '')
-        
-        password_hash = hash_password(password)
-        
-        if username == ADMIN_USERNAME and password_hash == ADMIN_PASSWORD_HASH:
-            session['admin_logged_in'] = True
-            session['admin_username'] = username
-            logger.info(f"Admin login successful: {username}")
-            return redirect('/database')
-        else:
-            logger.warning(f"Failed admin login attempt: {username}")
-            return render_template('admin_login.html', error="Credenciales incorrectas")
-    
-    return render_template('admin_login.html')
-
-
-@app.route('/admin/logout')
-def admin_logout():
-    """Logout de administrador"""
-    session.clear()
-    return redirect('/')
-
-
-# ==================== BLESSED NUMBERS MANAGEMENT ====================
 
 def get_blessed_numbers_config():
     """Obtiene la configuración de números benditos"""
@@ -353,122 +1137,11 @@ def save_blessed_numbers_config(visible, scheduled_date=None, numbers=None):
         return False
 
 
-@app.route('/api/blessed_numbers_status')
-def api_blessed_numbers_status():
-    """API mejorada para obtener el estado de los números benditos"""
-    try:
-        config = get_blessed_numbers_config()
-        
-        # Verificar si es una fecha programada
-        now = datetime.now()
-        visible = config['visible']
-        show_date = None
-        
-        if config['scheduled_date'] and not visible:
-            try:
-                scheduled = datetime.fromisoformat(config['scheduled_date'])
-                if now >= scheduled:
-                    visible = True
-                    # Actualizar visibilidad automáticamente
-                    save_blessed_numbers_config(True, config['scheduled_date'], config['numbers'])
-                else:
-                    # Calcular tiempo restante
-                    show_date = scheduled.strftime('%d/%m/%Y %H:%M')
-            except Exception as e:
-                logger.error(f"Error parsing scheduled date: {e}")
-        
-        return jsonify({
-            'visible': visible,
-            'scheduled_date': config['scheduled_date'],
-            'show_date': show_date,
-            'numbers': config['numbers'] if (visible and config['numbers']) else [],
-            'has_numbers': bool(config['numbers'])
-        })
-    except Exception as e:
-        logger.error(f"Error in blessed numbers status: {e}")
-        return jsonify({
-            'visible': False, 
-            'numbers': [], 
-            'has_numbers': False
-        })
-
-
-@app.route('/admin/blessed_numbers', methods=['GET', 'POST'])
-@login_required
-def admin_blessed_numbers():
-    """Panel de administración de números benditos mejorado"""
-    if request.method == 'POST':
-        action = request.form.get('action')
-        
-        if action == 'save':
-            # Guardar configuración completa
-            visible = request.form.get('visible') == 'on'
-            scheduled_date = request.form.get('scheduled_date') or None
-            number1 = request.form.get('number1', '').strip()
-            number2 = request.form.get('number2', '').strip()
-            
-            # Validar números
-            errors = []
-            numbers = []
-            
-            if number1:
-                try:
-                    num1 = int(number1)
-                    if 1 <= num1 <= 2000:
-                        numbers.append(num1)
-                    else:
-                        errors.append("El número 1 debe estar entre 1 y 2000")
-                except ValueError:
-                    errors.append("El número 1 debe ser un entero válido")
-            
-            if number2:
-                try:
-                    num2 = int(number2)
-                    if 1 <= num2 <= 2000:
-                        if num2 not in numbers:
-                            numbers.append(num2)
-                        else:
-                            errors.append("Los números no pueden ser iguales")
-                    else:
-                        errors.append("El número 2 debe estar entre 1 y 2000")
-                except ValueError:
-                    errors.append("El número 2 debe ser un entero válido")
-            
-            if errors:
-                config = get_blessed_numbers_config()
-                return render_template('admin_blessed_numbers.html', 
-                                     config=config, 
-                                     errors=errors)
-            
-            # Guardar configuración
-            save_blessed_numbers_config(visible, scheduled_date, numbers if numbers else None)
-            
-            return redirect('/admin/blessed_numbers?success=1')
-        
-        elif action == 'delete':
-            # Eliminar configuración
-            save_blessed_numbers_config(False, None, None)
-            return redirect('/admin/blessed_numbers?deleted=1')
-    
-    # GET request
-    config = get_blessed_numbers_config()
-    success = request.args.get('success')
-    deleted = request.args.get('deleted')
-    
-    return render_template('admin_blessed_numbers.html', 
-                         config=config, 
-                         success=success,
-                         deleted=deleted)
-
-
-# ==================== METRICS CALCULATION ====================
-
 def calculate_metrics(date_from=None, date_to=None):
     """Calcula métricas del sistema"""
     try:
         metrics = {}
         
-        # Construir condición de fecha
         date_condition = "WHERE status = 'confirmed'"
         params = []
         
@@ -479,7 +1152,6 @@ def calculate_metrics(date_from=None, date_to=None):
             date_condition += " AND created_at <= %s"
             params.append(date_to)
         
-        # Total de compras
         result = app_db.run_query(
             f"SELECT COUNT(*) FROM purchases {date_condition}",
             params=tuple(params) if params else None,
@@ -487,7 +1159,6 @@ def calculate_metrics(date_from=None, date_to=None):
         )
         metrics['total_purchases'] = result[0] if result else 0
         
-        # Ingresos totales
         result = app_db.run_query(
             f"SELECT SUM(amount) FROM purchases {date_condition}",
             params=tuple(params) if params else None,
@@ -495,12 +1166,10 @@ def calculate_metrics(date_from=None, date_to=None):
         )
         metrics['total_revenue'] = float(result[0]) if result and result[0] else 0.0
         
-        # Números vendidos
         metrics['numbers_sold'] = app_db.count_assigned_numbers()
         metrics['numbers_available'] = 2000 - metrics['numbers_sold']
         metrics['percentage_sold'] = (metrics['numbers_sold'] / 2000) * 100
         
-        # Ventas por día (últimos 7 días)
         result = app_db.run_query("""
             SELECT 
                 DATE(created_at) as date,
@@ -522,13 +1191,11 @@ def calculate_metrics(date_from=None, date_to=None):
                     'revenue': float(row[2])
                 })
         
-        # Promedio por compra
         if metrics['total_purchases'] > 0:
             metrics['average_purchase'] = metrics['total_revenue'] / metrics['total_purchases']
         else:
             metrics['average_purchase'] = 0.0
         
-        # Paquete más vendido
         result = app_db.run_query("""
             SELECT amount, COUNT(*) as count
             FROM purchases 
@@ -581,7 +1248,6 @@ def generate_table_rows(purchases):
     table_rows = ""
     for p in purchases:
         try:
-            # Extraer datos de manera segura
             p_id = p[0] if len(p) > 0 else 'N/A'
             p_invoice = p[1] if len(p) > 1 else 'N/A'
             p_amount = p[2] if len(p) > 2 else 0
@@ -589,12 +1255,10 @@ def generate_table_rows(purchases):
             p_numbers = p[4] if len(p) > 4 else ''
             p_status = p[5] if len(p) > 5 else 'pending'
             
-            # Nuevos campos
             p_full_name = p[10] if len(p) > 10 and p[10] else 'No especificado'
             p_document = p[12] if len(p) > 12 and p[12] else 'N/A'
             p_phone = p[13] if len(p) > 13 and p[13] else 'N/A'
             
-            # Estilos por estado - TEMA OSCURO
             status_styles = {
                 'confirmed': 'background: linear-gradient(135deg, #4CAF50, #45a049); color: #ffffff; padding: 8px 16px; border-radius: 8px; font-weight: 700; box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);',
                 'pending': 'background: linear-gradient(135deg, #FFA500, #FF8C00); color: #ffffff; padding: 8px 16px; border-radius: 8px; font-weight: 700; box-shadow: 0 0 15px rgba(255, 165, 0, 0.5);',
@@ -602,7 +1266,6 @@ def generate_table_rows(purchases):
             }
             status_style = status_styles.get(p_status, '')
             
-            # Truncar números si son muchos
             numbers_display = p_numbers
             if len(p_numbers) > 50:
                 num_count = len(p_numbers.split(','))
@@ -636,35 +1299,8 @@ def generate_table_rows(purchases):
     return table_rows
 
 
-# ==================== EMAIL FUNCTIONS ====================
-
-def send_email(to_email, subject, body):
-    if not EMAIL_SENDER or not EMAIL_PASSWORD:
-        logger.warning("Email credentials not configured")
-        return
-
-    msg = MIMEMultipart()
-    msg['From'] = EMAIL_SENDER
-    msg['To'] = to_email
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(body, 'html'))
-
-    try:
-        server = smtplib.SMTP(EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT)
-        server.starttls()
-        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(EMAIL_SENDER, to_email, text)
-        server.quit()
-        logger.info(f"Email sent to {to_email}")
-    except Exception as e:
-        logger.error(f"Failed to send email: {e}")
-
-
-# ==================== NUMBERS ASSIGNMENT ====================
-
 def assign_numbers(count):
+    """Asigna números aleatorios disponibles"""
     rows = app_db.run_query("SELECT number FROM assigned_numbers", fetchall=True) or []
     assigned = set()
     for r in rows:
@@ -691,7 +1327,6 @@ def save_purchase(invoice_id, amount, email, numbers, **kwargs):
     try:
         numbers_str = ','.join(map(str, numbers))
         
-        # Extraer información adicional
         full_name = kwargs.get('full_name')
         document_type = kwargs.get('document_type')
         document_number = kwargs.get('document_number')
@@ -723,7 +1358,6 @@ def save_purchase(invoice_id, amount, email, numbers, **kwargs):
                 params=(invoice_id, amount, email, numbers_str), commit=True
             )
 
-        # Insertar números asignados
         for number in numbers:
             app_db.run_query(
                 "INSERT INTO assigned_numbers (number, invoice_id, is_confirmed) VALUES (%s, %s, TRUE)", 
@@ -731,17 +1365,17 @@ def save_purchase(invoice_id, amount, email, numbers, **kwargs):
             )
         
         logger.info(f"✅ Compra guardada exitosamente: {invoice_id}")
-        return True  # ← IMPORTANTE: Devolver True si todo salió bien
+        return True
         
     except Exception as e:
         logger.error(f"❌ Error guardando compra {invoice_id}: {e}")
         import traceback
         traceback.print_exc()
-        return False  # ← IMPORTANTE: Devolver False si falló
-
+        return False
 
 
 def verify_signature(data, signature):
+    """Verifica la firma de ePayco"""
     if not EPAYCO_PRIVATE_KEY or not signature:
         return False
 
@@ -751,26 +1385,9 @@ def verify_signature(data, signature):
     return hmac.compare_digest(signature, expected_sig)
 
 
-# ==================== ROUTES ====================
-
-@app.route('/')
-def index():
-    try:
-        return render_template('index.html')
-    except Exception as e:
-        logger.error(f"Error rendering index.html: {e}")
-        import traceback
-        traceback.print_exc()
-        return f"Error loading page: {str(e)}", 500
-
-
-@app.route('/<path:filename>')
-def serve_static(filename):
-    return send_from_directory('.', filename)
-
-
 @app.route('/response')
 def response():
+    """Página de respuesta de ePayco"""
     ref_payco = request.args.get('ref_payco')
     transaction_id = request.args.get('transactionId')
 
@@ -788,6 +1405,7 @@ def response():
 
 @app.route('/confirmation', methods=['POST'])
 def confirmation():
+    """Confirmación de pago de ePayco"""
     data = request.form.to_dict()
     logger.info(f"Confirmation received: {data}")
 
@@ -831,16 +1449,6 @@ def confirmation():
             
             save_purchase(ref_payco, amount_float, customer_email, numbers, **client_info)
 
-            numbers_str = ', '.join(map(str, numbers))
-            email_body = f"""
-            <h2>¡Felicitaciones! Tu compra ha sido confirmada</h2>
-            <p>Referencia de pago: {ref_payco}</p>
-            <p>Monto: ${amount} {currency}</p>
-            <p>Números asignados: {numbers_str}</p>
-            <p>¡Buena suerte en la rifa!</p>
-            """
-            send_email(customer_email, "Confirmación de compra - Rifa 5 Millones", email_body)
-
             logger.info(f"Purchase confirmed: {ref_payco}, numbers: {numbers}")
             return jsonify({'status': 'success'}), 200
 
@@ -850,290 +1458,6 @@ def confirmation():
     else:
         logger.info(f"Payment not accepted: {transaction_state}")
         return jsonify({'status': 'pending'}), 200
-
-
-@app.route('/progress')
-def progress():
-    total_numbers = 2000
-    assigned_count = 0
-    try:
-        assigned_count = app_db.count_assigned_numbers()
-    except Exception as e:
-        logger.error(f"Error counting assigned numbers: {e}")
-
-    percentage = 0.0
-    try:
-        percentage = (assigned_count / total_numbers) * 100
-    except Exception:
-        percentage = 0.0
-
-    return jsonify({
-        'assigned': int(assigned_count or 0),
-        'total': total_numbers,
-        'percentage': round(percentage, 1)
-    })
-
-
-@app.route('/database')
-@login_required
-def database():
-    """Panel de administración mejorado con búsqueda y métricas"""
-    try:
-        # Obtener parámetros de búsqueda
-        search_query = request.args.get('search', '').strip()
-        date_from = request.args.get('date_from', '')
-        date_to = request.args.get('date_to', '')
-        status_filter = request.args.get('status', '')
-        
-        # Construir query base
-        query = "SELECT * FROM purchases WHERE 1=1"
-        params = []
-        
-        # Aplicar filtros
-        if search_query:
-            query += """ AND (
-                LOWER(full_name) LIKE LOWER(%s) OR 
-                LOWER(email) LIKE LOWER(%s) OR 
-                LOWER(phone) LIKE LOWER(%s) OR 
-                LOWER(document_number) LIKE LOWER(%s)
-            )"""
-            search_pattern = f"%{search_query}%"
-            params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
-        
-        if date_from:
-            query += " AND created_at >= %s"
-            params.append(date_from)
-        
-        if date_to:
-            query += " AND created_at <= %s"
-            params.append(date_to)
-        
-        if status_filter:
-            query += " AND status = %s"
-            params.append(status_filter)
-        
-        # Excluir eliminados
-        query += " AND (status != 'deleted' OR status IS NULL)"
-        query += " ORDER BY created_at DESC LIMIT 100"
-        
-        # Ejecutar query
-        purchases = app_db.run_query(query, params=tuple(params) if params else None, fetchall=True) or []
-        
-        # Calcular métricas
-        metrics = calculate_metrics(date_from, date_to)
-        
-        # Generar HTML de la tabla
-        table_rows = generate_table_rows(purchases)
-        
-        return render_template('admin_database.html',
-                             purchases=purchases,
-                             table_rows=table_rows,
-                             metrics=metrics,
-                             search_query=search_query,
-                             date_from=date_from,
-                             date_to=date_to,
-                             status_filter=status_filter)
-    
-    except Exception as e:
-        logger.error(f"Error en endpoint /database: {e}")
-        import traceback
-        traceback.print_exc()
-        return f"<h1>Error en Base de Datos</h1><pre>{str(e)}</pre>", 500
-
-
-@app.route('/edit_purchase/<int:purchase_id>', methods=['GET', 'POST'])
-@login_required
-def edit_purchase(purchase_id):
-    if request.method == 'POST':
-        invoice_id = request.form['invoice_id']
-        amount = request.form['amount']
-        email = request.form['email']
-        numbers = request.form['numbers']
-        status = request.form['status']
-
-        conn = app_db.get_db_connection()
-        c = conn.cursor()
-        c.execute("""
-            UPDATE purchases
-            SET invoice_id = %s, amount = %s, email = %s, numbers = %s, status = %s
-            WHERE id = %s
-        """, (invoice_id, amount, email, numbers, status, purchase_id))
-        conn.commit()
-        conn.close()
-
-        return redirect('/database')
-
-    purchase = app_db.run_query("SELECT * FROM purchases WHERE id = %s", params=(purchase_id,), fetchone=True)
-
-    if not purchase:
-        return "Compra no encontrada", 404
-
-    return f"""
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <title>Editar Compra - Rifa</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }}
-            .form-group {{ margin-bottom: 15px; }}
-            label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
-            input, select {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }}
-            .btn {{ padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }}
-            .btn-save {{ background-color: #4CAF50; color: white; }}
-            .btn-cancel {{ background-color: #f44336; color: white; text-decoration: none; display: inline-block; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>✏️ Editar Compra</h1>
-            <form method="POST">
-                <div class="form-group">
-                    <label>Referencia:</label>
-                    <input type="text" name="invoice_id" value="{purchase[1]}" required>
-                </div>
-                <div class="form-group">
-                    <label>Monto:</label>
-                    <input type="number" name="amount" value="{purchase[2]}" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label>Email:</label>
-                    <input type="email" name="email" value="{purchase[3]}" required>
-                </div>
-                <div class="form-group">
-                    <label>Números:</label>
-                    <input type="text" name="numbers" value="{purchase[4]}" required>
-                </div>
-                <div class="form-group">
-                    <label>Estado:</label>
-                    <select name="status">
-                        <option value="pending" {'selected' if purchase[5] == 'pending' else ''}>Pendiente</option>
-                        <option value="confirmed" {'selected' if purchase[5] == 'confirmed' else ''}>Confirmado</option>
-                        <option value="cancelled" {'selected' if purchase[5] == 'cancelled' else ''}>Cancelado</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-save">Guardar</button>
-                <a href="/database" class="btn btn-cancel">Cancelar</a>
-            </form>
-        </div>
-    </body>
-    </html>
-    """
-
-
-@app.route('/delete_purchase/<int:purchase_id>')
-@login_required
-def delete_purchase(purchase_id):
-    purchase = app_db.run_query("SELECT numbers FROM purchases WHERE id = %s", params=(purchase_id,), fetchone=True)
-
-    if purchase:
-        numbers_str = purchase[0] if isinstance(purchase, (list, tuple)) else purchase
-        if numbers_str:
-            numbers = [int(n.strip()) for n in numbers_str.split(',')]
-            for number in numbers:
-                app_db.run_query("DELETE FROM assigned_numbers WHERE number = %s", params=(number,), commit=True)
-
-        app_db.run_query("DELETE FROM purchases WHERE id = %s", params=(purchase_id,), commit=True)
-    return redirect('/database')
-
-
-# ==================== ADMIN SIMULATION ====================
-
-@app.route('/admin/simulate_purchase', methods=['POST'])
-def simulate_purchase():
-    """Simula una compra para testing - CON LOGS DETALLADOS"""
-    key = request.form.get('key')
-    
-    logger.info(f"🔑 Clave recibida: {key}")
-    logger.info(f"🔑 Clave esperada: {ADMIN_SIM_KEY}")
-    
-    if key != ADMIN_SIM_KEY:
-        logger.warning("❌ Clave admin incorrecta")
-        abort(403)
-    
-    try:
-        amount = int(request.form.get('amount', 4))
-        email = request.form.get('email', 'test@demo.com')
-        customer_name = request.form.get('name', 'Cliente de Prueba')
-        
-        logger.info(f"📊 Parámetros: amount={amount}, email={email}, name={customer_name}")
-        
-        # 1. Asignar números
-        logger.info("🎲 Asignando números...")
-        numbers = assign_numbers(amount)
-        
-        if not numbers:
-            logger.error("❌ No hay números disponibles")
-            return jsonify({
-                "status": "error",
-                "message": "Not enough numbers available"
-            }), 400
-        
-        logger.info(f"✅ Números asignados: {numbers}")
-        
-        # 2. Crear factura
-        invoice_id = f"sim_{uuid.uuid4().hex[:12]}"
-        amount_value = amount * 6250  # $6,250 por número
-        
-        logger.info(f"💰 Invoice: {invoice_id}, Amount: ${amount_value:,}")
-        
-        # 3. Guardar en base de datos
-        logger.info("💾 Guardando en base de datos...")
-        saved = save_purchase(
-            invoice_id=invoice_id,
-            amount=amount_value,
-            email=email,
-            numbers=numbers,
-            full_name=customer_name  # ← Pasar el nombre
-        )
-        
-        if not saved:
-            logger.error("❌ Error guardando en base de datos")
-            return jsonify({
-                "status": "error",
-                "message": "Database error - check server logs"
-            }), 500
-        
-        logger.info("✅ Guardado en base de datos exitosamente")
-        
-        # 4. Enviar email
-        logger.info("📧 Enviando email de confirmación...")
-        try:
-            email_sent = send_purchase_confirmation_email(
-                customer_email=email,
-                customer_name=customer_name,
-                numbers=numbers,
-                amount=amount_value,
-                invoice_id=invoice_id
-            )
-            
-            if email_sent:
-                logger.info(f"✅ Email enviado a {email}")
-            else:
-                logger.warning(f"⚠️ Email no se pudo enviar a {email}")
-        except Exception as email_error:
-            logger.error(f"❌ Error enviando email: {email_error}")
-            # No fallar la compra si el email falla
-        
-        # 5. Devolver respuesta exitosa
-        logger.info("🎉 Compra simulada completada exitosamente")
-        return jsonify({
-            "status": "ok",
-            "invoice_id": invoice_id,
-            "numbers": numbers,
-            "email_sent": email_sent if 'email_sent' in locals() else False
-        })
-            
-    except Exception as e:
-        logger.error(f"💥 Error crítico en simulate_purchase: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": f"Server error: {str(e)}"
-        }), 500
-
 
 
 if __name__ == '__main__':
