@@ -1,95 +1,61 @@
-# Forzar HTTPS
+# ============================================
+
+# FORZAR HTTPS
+
+# ============================================
 
 RewriteEngine On
 RewriteCond %{HTTPS} off
 RewriteRule ^(.\*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Proteger archivos sensibles
+# ============================================
 
-<FilesMatch "\.(env|py|pyc|pyo|log|db)$">
-Order allow,deny
-Deny from all
+# PROTEGER ARCHIVOS SENSIBLES
+
+# ============================================
+
+<FilesMatch "\.(env|py|pyc|pyo|log|db|sqlite|txt|md|sh)$">
+Require all denied
 </FilesMatch>
 
-```
+# Bloquear acceso a directorios
 
-#### **B. Configurar en Hostinger:**
-
-1. **Sube los archivos** vía FTP o File Manager
-2. **Configura Python** en el panel de Hostinger:
-   - Python version: 3.9+
-   - Entry point: `server.py`
-   - Application root: `/public_html/`
-
-3. **Configura variables de entorno:**
-```
+RedirectMatch 403 ^/\.git
+RedirectMatch 403 ^/venv
+RedirectMatch 403 ^/\.venv
+RedirectMatch 403 ^/scripts
+RedirectMatch 403 ^/**pycache**
+RedirectMatch 403 ^/tests
+RedirectMatch 403 ^/docs
 
 # ============================================
 
-# ENTORNO DE PRODUCCIÓN
+# HEADERS DE SEGURIDAD
 
 # ============================================
 
-ENVIRONMENT=production
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
 
 # ============================================
 
-# BASE DE DATOS - NEON POSTGRESQL
+# PREVENIR DIRECTORY LISTING
 
 # ============================================
 
-DATABASE_URL=postgresql://neondb_owner:npg_j7im9lcwxGBM@ep-dark-feather-adbcf7hh-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+Options -Indexes
 
 # ============================================
 
-# URLs DE PRODUCCIÓN
+# PROTECCIÓN CONTRA HOTLINKING
 
 # ============================================
 
-BASE_URL=https://familiones.com
-RESPONSE_URL=https://familiones.com/response
-CONFIRMATION_URL=https://familiones.com/confirmation
-
-# ============================================
-
-# EPAYCO - PRODUCCIÓN
-
-# ============================================
-
-EPAYCO_PUBLIC_KEY=70b19a05a3f3374085061d1bfd386a8b
-EPAYCO_PRIVATE_KEY=TU_PRIVATE_KEY_REAL_AQUI
-
-# ============================================
-
-# EMAIL
-
-# ============================================
-
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=productionsd546@gmail.com
-MAIL_PASSWORD=mldl qgbk vabv zrfg
-MAIL_DEFAULT_SENDER=productionsd546@gmail.com
-
-# ============================================
-
-# SEGURIDAD - CAMBIAR ESTOS VALORES
-
-# ============================================
-
-SECRET_KEY=e8f0c5735ec9c84b4870f11802e81b6a07420d1b2ab994c9aa5f524030965035
-PASSWORD_SALT=rifa_salt_gN4fDA7LFYL7qnlsdxpBfA
-ADMIN_USERNAME=admin_production
-ADMIN_PASSWORD_HASH=4516e32af3bba0d61446e049704c1ff8843ce7dce0da37992845d125afd616c3
-ADMIN_SIM_KEY=apHt6HyqUgKcHLJNi3JQPvuWuns8rcXEMMaVms9zggo
-
-# ============================================
-
-# PUERTO
-
-# ============================================
-
-PORT=8080
-
-Hostinger Panel → Python Setup → Environment Variables
+RewriteEngine on
+RewriteCond %{HTTP_REFERER} !^$
+RewriteCond %{HTTP_REFERER} !^http(s)?://(www\.)?familiones.com [NC]
+RewriteRule \.(jpg|jpeg|png|gif|svg)$ - [NC,F,L]
