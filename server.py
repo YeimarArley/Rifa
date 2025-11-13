@@ -16,12 +16,44 @@ from dotenv import load_dotenv
 from functools import wraps
 from flask_mail import Mail, Message
 import secrets
+from flask_talisman import Talisman
 
 # ==================== CONFIGURACIÓN INICIAL ====================
 load_dotenv()
 
 # Create Flask app PRIMERO
 app = Flask(__name__)
+
+# Forzar HTTPS y headers de seguridad
+if os.getenv('ENVIRONMENT') == 'production':
+    Talisman(app, 
+             force_https=True,
+             strict_transport_security=True,
+             content_security_policy={
+                 'default-src': ["'self'", 'https://checkout.epayco.co'],
+                 'script-src': ["'self'", "'unsafe-inline'", 'https://checkout.epayco.co'],
+                 'style-src': ["'self'", "'unsafe-inline'"],
+                 'img-src': ["'self'", 'data:', 'https:'],
+             })
+
+# Proteger archivos sensibles
+@app.before_request
+def block_sensitive_files():
+    """Bloquea acceso a archivos sensibles"""
+    blocked_extensions = ['.env', '.py', '.pyc', '.db', '.log', '.key']
+    blocked_dirs = ['scripts/', 'app/', '__pycache__/']
+    
+    path = request.path.lower()
+    
+    # Bloquear extensiones
+    if any(path.endswith(ext) for ext in blocked_extensions):
+        abort(403)
+    
+    # Bloquear directorios
+    if any(blocked_dir in path for blocked_dir in blocked_dirs):
+        # Permitir solo rutas públicas específicas
+        if not path.startswith('/static/') and not path.startswith('/templates/'):
+            abort(403)
 
 # ==================== CONFIGURACIÓN DE SEGURIDAD ====================
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
