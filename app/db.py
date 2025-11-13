@@ -3,9 +3,11 @@ import psycopg2
 import sqlite3
 import logging
 from psycopg2.extras import RealDictCursor
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
+# Configuración de base de datos
 DB_HOST = os.getenv('DB_HOST', 'localhost')
 DB_PORT = os.getenv('DB_PORT', '5432')
 DB_NAME = os.getenv('DB_NAME', 'rifa_db')
@@ -14,34 +16,49 @@ DB_PASSWORD = os.getenv('DB_PASSWORD', 'rifa_password')
 
 
 def get_postgres_connection():
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
-    )
+    """Crea conexión a PostgreSQL con manejo de encoding"""
+    try:
+        # Opción 1: Usar DATABASE_URL si está disponible
+        database_url = os.getenv('DATABASE_URL')
+        if database_url:
+            # Parsear la URL y conectar
+            return psycopg2.connect(database_url, sslmode='require')
+        
+        # Opción 2: Usar credenciales individuales
+        return psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            sslmode='require',
+            connect_timeout=10
+        )
+    except Exception as e:
+        logger.error(f"Error conectando a PostgreSQL: {e}")
+        raise
 
 
 def get_db_connection():
-    """Return a connection to Postgres if available, otherwise a sqlite3 connection."""
+    """Retorna conexión a Postgres o SQLite como fallback"""
     try:
         conn = get_postgres_connection()
+        logger.info("✅ Conectado a PostgreSQL")
         return conn
     except Exception as e:
-        logger.warning(f"Postgres connection failed, using sqlite fallback: {e}")
+        logger.warning(f"⚠️ PostgreSQL no disponible, usando SQLite: {e}")
         sqlite_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rifa.db')
         conn = sqlite3.connect(sqlite_path)
         return conn
 
 
 def init_db():
-    """Initialize database tables in Postgres if available, otherwise in sqlite file."""
+    """Inicializa las tablas de la base de datos"""
     try:
         conn = get_postgres_connection()
         c = conn.cursor()
         
-        # Tabla de compras mejorada
+        # Tabla de compras
         c.execute('''CREATE TABLE IF NOT EXISTS purchases
                      (id SERIAL PRIMARY KEY,
                       invoice_id VARCHAR(255) UNIQUE NOT NULL,
@@ -71,8 +88,7 @@ def init_db():
                       invoice_id VARCHAR(255),
                       assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       reserved_until TIMESTAMP,
-                      is_confirmed BOOLEAN DEFAULT FALSE,
-                      FOREIGN KEY(invoice_id) REFERENCES purchases(invoice_id))''')
+                      is_confirmed BOOLEAN DEFAULT FALSE)''')
         
         # Tabla de configuración de números benditos
         c.execute('''CREATE TABLE IF NOT EXISTS blessed_numbers_config
@@ -86,8 +102,7 @@ def init_db():
         # Tabla de usuarios admin
         c.execute('''CREATE TABLE IF NOT EXISTS admin_users
                      (id SERIAL PRIMARY KEY,
-                      username VARCHAR(255) UNIQUE NOT NULL,
-                      email VARCHAR(255) UNIQUE,
+                      email VARCHAR(255) UNIQUE NOT NULL,
                       password_hash VARCHAR(255) NOT NULL,
                       is_active BOOLEAN DEFAULT TRUE,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -102,104 +117,106 @@ def init_db():
                       record_id INTEGER,
                       old_values JSONB,
                       new_values JSONB,
-                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      FOREIGN KEY(admin_user_id) REFERENCES admin_users(id))''')
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
-        # Crear índices para mejor rendimiento
+        # Crear índices
         c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_status ON purchases(status)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_email ON purchases(email)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_invoice ON assigned_numbers(invoice_id)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_confirmed ON assigned_numbers(is_confirmed)''')
+        c.execute('''CREATE INDEX IF NOT EXISTS idx_admin_email ON admin_users(email)''')
         
         conn.commit()
         conn.close()
-        logger.info('Initialized Postgres tables')
+        logger.info('✅ Tablas PostgreSQL inicializadas correctamente')
         return
+        
     except Exception as e:
-        logger.warning(f'Could not initialize Postgres DB, falling back to sqlite: {e}')
-
-    # Fallback to sqlite
-    sqlite_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rifa.db')
-    try:
-        sconn = sqlite3.connect(sqlite_path)
-        sc = sconn.cursor()
+        logger.warning(f'⚠️ No se pudo inicializar PostgreSQL, usando SQLite: {e}')
         
-        # Tabla de compras mejorada
-        sc.execute('''CREATE TABLE IF NOT EXISTS purchases
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       invoice_id TEXT UNIQUE NOT NULL,
-                       amount REAL NOT NULL,
-                       email TEXT NOT NULL,
-                       numbers TEXT NOT NULL,
-                       status TEXT DEFAULT 'pending',
-                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                       deleted_at TIMESTAMP,
-                       notes TEXT,
-                       full_name TEXT,
-                       document_type TEXT,
-                       document_number TEXT,
-                       phone TEXT,
-                       address TEXT,
-                       payment_method TEXT,
-                       bank_name TEXT,
-                       transaction_id TEXT,
-                       franchise TEXT,
-                       response_code TEXT,
-                       confirmed_at TIMESTAMP)''')
-        
-        # Tabla de números asignados
-        sc.execute('''CREATE TABLE IF NOT EXISTS assigned_numbers
-                      (number INTEGER PRIMARY KEY,
-                       invoice_id TEXT,
-                       assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                       reserved_until TIMESTAMP,
-                       is_confirmed INTEGER DEFAULT 0)''')
-        
-        # Tabla de configuración de números benditos
-        sc.execute('''CREATE TABLE IF NOT EXISTS blessed_numbers_config
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       visible INTEGER DEFAULT 0,
-                       scheduled_date TEXT,
-                       numbers TEXT,
-                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        
-        # Tabla de usuarios admin
-        sc.execute('''CREATE TABLE IF NOT EXISTS admin_users
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT UNIQUE NOT NULL,
-                       email TEXT UNIQUE,
-                       password_hash TEXT NOT NULL,
-                       is_active INTEGER DEFAULT 1,
-                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        
-        # Tabla de auditoría
-        sc.execute('''CREATE TABLE IF NOT EXISTS audit_log
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       admin_user_id INTEGER,
-                       action TEXT,
-                       table_name TEXT,
-                       record_id INTEGER,
-                       old_values TEXT,
-                       new_values TEXT,
-                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        
-        sconn.commit()
-        sconn.close()
-        logger.info('Initialized sqlite fallback database at %s', sqlite_path)
-    except Exception as e2:
-        logger.error(f'Failed to initialize sqlite fallback DB: {e2}')
+        # Fallback a SQLite
+        sqlite_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rifa.db')
+        try:
+            sconn = sqlite3.connect(sqlite_path)
+            sc = sconn.cursor()
+            
+            # Tabla de compras
+            sc.execute('''CREATE TABLE IF NOT EXISTS purchases
+                          (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                           invoice_id TEXT UNIQUE NOT NULL,
+                           amount REAL NOT NULL,
+                           email TEXT NOT NULL,
+                           numbers TEXT NOT NULL,
+                           status TEXT DEFAULT 'pending',
+                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           deleted_at TIMESTAMP,
+                           notes TEXT,
+                           full_name TEXT,
+                           document_type TEXT,
+                           document_number TEXT,
+                           phone TEXT,
+                           address TEXT,
+                           payment_method TEXT,
+                           bank_name TEXT,
+                           transaction_id TEXT,
+                           franchise TEXT,
+                           response_code TEXT,
+                           confirmed_at TIMESTAMP)''')
+            
+            # Tabla de números asignados
+            sc.execute('''CREATE TABLE IF NOT EXISTS assigned_numbers
+                          (number INTEGER PRIMARY KEY,
+                           invoice_id TEXT,
+                           assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           reserved_until TIMESTAMP,
+                           is_confirmed INTEGER DEFAULT 0)''')
+            
+            # Tabla de configuración de números benditos
+            sc.execute('''CREATE TABLE IF NOT EXISTS blessed_numbers_config
+                          (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                           visible INTEGER DEFAULT 0,
+                           scheduled_date TEXT,
+                           numbers TEXT,
+                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            
+            # Tabla de usuarios admin
+            sc.execute('''CREATE TABLE IF NOT EXISTS admin_users
+                          (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                           email TEXT UNIQUE NOT NULL,
+                           password_hash TEXT NOT NULL,
+                           is_active INTEGER DEFAULT 1,
+                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            
+            # Tabla de auditoría
+            sc.execute('''CREATE TABLE IF NOT EXISTS audit_log
+                          (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                           admin_user_id INTEGER,
+                           action TEXT,
+                           table_name TEXT,
+                           record_id INTEGER,
+                           old_values TEXT,
+                           new_values TEXT,
+                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            
+            sconn.commit()
+            sconn.close()
+            logger.info('✅ Base de datos SQLite inicializada en: %s', sqlite_path)
+            
+        except Exception as e2:
+            logger.error(f'❌ Error inicializando SQLite: {e2}')
 
 
 def _is_sqlite_conn(conn):
+    """Detecta si la conexión es SQLite"""
     return isinstance(conn, sqlite3.Connection)
 
 
 def run_query(query, params=None, fetchone=False, fetchall=False, commit=False):
-    """Run a SQL query against Postgres or sqlite."""
+    """Ejecuta una query SQL en Postgres o SQLite"""
     conn = None
     cur = None
     try:
@@ -208,8 +225,9 @@ def run_query(query, params=None, fetchone=False, fetchall=False, commit=False):
 
         q = query
         p = params or ()
+        
+        # Convertir placeholders para SQLite
         if _is_sqlite_conn(conn):
-            # sqlite uses ? placeholders
             q = query.replace('%s', '?')
 
         cur.execute(q, p)
@@ -223,6 +241,13 @@ def run_query(query, params=None, fetchone=False, fetchall=False, commit=False):
             result = cur.fetchall()
 
         return result
+        
+    except Exception as e:
+        logger.error(f"Error ejecutando query: {e}")
+        if conn:
+            conn.rollback()
+        raise
+        
     finally:
         try:
             if cur:
@@ -237,11 +262,10 @@ def run_query(query, params=None, fetchone=False, fetchall=False, commit=False):
 
 
 def count_assigned_numbers():
-    """Cuenta números asignados confirmados - CORREGIDO PARA POSTGRESQL"""
+    """Cuenta números asignados confirmados"""
     try:
         conn = get_db_connection()
         
-        # Detectar si es PostgreSQL o SQLite
         if _is_sqlite_conn(conn):
             # SQLite usa INTEGER (0 o 1)
             row = run_query(
@@ -249,7 +273,7 @@ def count_assigned_numbers():
                 fetchone=True
             )
         else:
-            # PostgreSQL usa BOOLEAN (TRUE/FALSE)
+            # PostgreSQL usa BOOLEAN
             row = run_query(
                 "SELECT COUNT(*) FROM assigned_numbers WHERE is_confirmed = TRUE", 
                 fetchone=True
@@ -257,18 +281,21 @@ def count_assigned_numbers():
         
         if not row:
             return 0
-        try:
-            return int(row[0])
-        except Exception:
-            return int(row)
+        
+        return int(row[0])
+        
     except Exception as e:
-        logger.error(f"Error counting assigned numbers: {e}")
+        logger.error(f"Error contando números asignados: {e}")
         return 0
 
 
 def get_purchase_by_id(purchase_id):
     """Obtiene una compra por ID"""
-    return run_query("SELECT * FROM purchases WHERE id = %s", params=(purchase_id,), fetchone=True)
+    return run_query(
+        "SELECT * FROM purchases WHERE id = %s", 
+        params=(purchase_id,), 
+        fetchone=True
+    )
 
 
 def update_purchase(purchase_id, invoice_id, amount, email, numbers, status, notes=None):
@@ -276,27 +303,26 @@ def update_purchase(purchase_id, invoice_id, amount, email, numbers, status, not
     try:
         run_query(
             """UPDATE purchases 
-               SET invoice_id = %s, amount = %s, email = %s, numbers = %s, status = %s, notes = %s, updated_at = CURRENT_TIMESTAMP
+               SET invoice_id = %s, amount = %s, email = %s, numbers = %s, 
+                   status = %s, notes = %s, updated_at = CURRENT_TIMESTAMP
                WHERE id = %s""",
             params=(invoice_id, amount, email, numbers, status, notes, purchase_id),
             commit=True
         )
         return True
     except Exception as e:
-        logger.error(f"Error updating purchase {purchase_id}: {e}")
+        logger.error(f"Error actualizando compra {purchase_id}: {e}")
         return False
 
 
 def delete_purchase(purchase_id):
     """Elimina una compra y sus números asignados"""
     try:
-        # Obtener la compra primero
         purchase = get_purchase_by_id(purchase_id)
         if not purchase:
             return False
         
-        # Obtener invoice_id
-        invoice_id = purchase[1] if isinstance(purchase, (list, tuple)) else purchase.get('invoice_id')
+        invoice_id = purchase[1]
         
         # Eliminar números asignados
         run_query(
@@ -305,7 +331,7 @@ def delete_purchase(purchase_id):
             commit=True
         )
         
-        # Eliminar la compra (soft delete)
+        # Soft delete de la compra
         run_query(
             "UPDATE purchases SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP WHERE id = %s",
             params=(purchase_id,),
@@ -313,8 +339,9 @@ def delete_purchase(purchase_id):
         )
         
         return True
+        
     except Exception as e:
-        logger.error(f"Error deleting purchase {purchase_id}: {e}")
+        logger.error(f"Error eliminando compra {purchase_id}: {e}")
         return False
 
 
@@ -332,6 +359,7 @@ def log_audit(admin_user_id, action, table_name, record_id, old_values=None, new
             commit=True
         )
         return True
+        
     except Exception as e:
-        logger.error(f"Error logging audit: {e}")
+        logger.error(f"Error registrando auditoría: {e}")
         return False
