@@ -1,7 +1,5 @@
 # Archivos de entorno
-.env
-.env.*
-*.env
+
 
 # Base de datos local
 *.db
