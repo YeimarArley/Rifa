@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrar Números Benditos - Rifa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            color: #2c3e50;
+            min-height: 100vh;
+        }
+
+        .admin-nav {
+            background: linear-gradient(90deg, #000000 0%, #333333 100%);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-title {
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            color: #ffffff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: background 0.3s;
+            font-weight: 600;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .nav-link.logout {
+            background: #f44336;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .alert {
+            padding: 1.25rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .alert-success {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: #ffffff;
+            border: 2px solid #4CAF50;
+        }
+
+        .alert-error {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: #ffffff;
+            border: 2px solid #f44336;
+        }
+
+        .alert-info {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: #ffffff;
+            border: 2px solid #2196F3;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(76, 175, 80, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #4CAF50;
+        }
+
+        .card-title {
+            font-size: 1.8rem;
+            color: #4CAF50;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #b0b0b0;
+            font-size: 0.95rem;
+        }
+
+        .form-group input[type="number"],
+        .form-group input[type="datetime-local"] {
+            padding: 0.85rem;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.3);
+            color: #ffffff;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1.25rem;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: #4CAF50;
+        }
+
+        .checkbox-group label {
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 1.05rem;
+            color: #ffffff;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.85rem 1.75rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.5);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(244, 67, 54, 0.5);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #666666 0%, #555555 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #555555 0%, #444444 100%);
+        }
+
+        .preview-section {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-top: 2rem;
+            border: 2px solid rgba(76, 175, 80, 0.2);
+        }
+
+        .preview-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #4CAF50;
+            text-align: center;
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 1px;
+        }
+
+        .tickets-preview {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .ticket-preview {
+            width: 200px;
+            height: 120px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border: 2px solid #ffffff;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
+        }
+
+        .ticket-preview-content {
+            padding: 15px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .ticket-preview h3 {
+            color: #ffffff;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .ticket-preview p {
+            color: #ffffff;
+            font-size: 1.8em;
+            font-weight: 800;
+        }
+
+        .ticket-preview .coming-soon {
+            font-size: 1em;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .promo-label-preview {
+            position: absolute;
+            top: 10px;
+            right: -10px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #000000;
+            padding: 5px 20px;
+            font-size: 0.7em;
+            font-weight: bold;
+            transform: rotate(15deg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            color: #808080;
+            margin-top: 0.25rem;
+            font-style: italic;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+
+        .status-active {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+
+        .status-inactive {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.5);
+        }
+
+        .status-scheduled {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000000;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .tickets-preview {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="admin-nav">
+        <div class="nav-title">⭐ ADMINISTRAR NÚMEROS BENDITOS</div>
+        <div class="nav-links">
+            <a href="/database" class="nav-link">← Volver al Admin</a>
+            <a href="/admin/logout" class="nav-link logout">🚪 Salir</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% if success %}
+        <div class="alert alert-success">
+            ✅ Configuración guardada exitosamente
+        </div>
+        {% endif %}
+
+        {% if deleted %}
+        <div class="alert alert-info">
+            🗑️ Configuración eliminada
+        </div>
+        {% endif %}
+
+        {% if errors %}
+        <div class="alert alert-error">
+            <strong>❌ Errores encontrados:</strong>
+            <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
+                {% for error in errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <span>⭐</span>
+                    <span>Configuración de Números Benditos</span>
+                </h2>
+                {% if config.numbers %}
+                    {% if config.visible %}
+                        <span class="status-badge status-active">● Visible</span>
+                    {% elif config.scheduled_date %}
+                        <span class="status-badge status-scheduled">⏰ Programado</span>
+                    {% else %}
+                        <span class="status-badge status-inactive">● Oculto</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <form method="POST">
+                <input type="hidden" name="action" value="save">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="number1">🎯 Número Bendito 1</label>
+                        <input 
+                            type="number" 
+                            id="number1" 
+                            name="number1" 
+                            min="1" 
+                            max="2000" 
+                            value="{{ config.numbers[0] if config.numbers and config.numbers|length > 0 else '' }}"
+                            placeholder="Ej: 777"
+                        >
+                        <span class="help-text">Número entre 1 y 2000</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="number2">🎯 Número Bendito 2</label>
+                        <input 
+                            type="number" 
+                            id="number2" 
+                            name="number2" 
+                            min="1" 
+                            max="2000" 
+                            value="{{ config.numbers[1] if config.numbers and config.numbers|length > 1 else '' }}"
+                            placeholder="Ej: 888"
+                        >
+                        <span class="help-text">Número entre 1 y 2000 (diferente al primero)</span>
+                    </div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input 
+                        type="checkbox" 
+                        id="visible" 
+                        name="visible"
+                        {% if config.visible %}checked{% endif %}
+                    >
+                    <label for="visible">👁️ Mostrar números benditos en la página principal ahora</label>
+                </div>
+
+                <div class="form-group">
+                    <label for="scheduled_date">📅 Programar fecha para mostrar (opcional)</label>
+                    <input 
+                        type="datetime-local" 
+                        id="scheduled_date" 
+                        name="scheduled_date"
+                        value="{{ config.scheduled_date[:16] if config.scheduled_date else '' }}"
+                    >
+                    <span class="help-text">Los números se mostrarán automáticamente en esta fecha</span>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Configuración
+                    </button>
+                    {% if config.numbers %}
+                    <button type="button" class="btn btn-danger" onclick="if(confirm('¿Estás seguro de eliminar la configuración?')) { document.getElementById('deleteForm').submit(); }">
+                        🗑️ Eliminar Configuración
+                    </button>
+                    {% endif %}
+                    <a href="/database" class="btn btn-secondary">
+                        ❌ Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Preview Section -->
+        {% if config.numbers %}
+        <div class="preview-section">
+            <h3 class="preview-title">Vista Previa - Cómo se verán en la página</h3>
+            <div class="tickets-preview">
+                <div class="ticket-preview">
+                    <div class="promo-label-preview">NÚMEROS BENDITOS</div>
+                    <div class="ticket-preview-content">
+                        <h3>Número Bendito</h3>
+                        {% if config.visible %}
+                            <p>{{ config.numbers[0] if config.numbers|length > 0 else '---' }}</p>
+                        {% else %}
+                            <p class="coming-soon">PRÓXIMAMENTE</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="ticket-preview">
+                    <div class="promo-label-preview">NÚMEROS BENDITOS</div>
+                    <div class="ticket-preview-content">
+                        <h3>Número Bendito</h3>
+                        {% if config.visible %}
+                            <p>{{ config.numbers[1] if config.numbers|length > 1 else '---' }}</p>
+                        {% else %}
+                            <p class="coming-soon">PRÓXIMAMENTE</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Hidden form for delete -->
+    <form id="deleteForm" method="POST" style="display: none;">
+        <input type="hidden" name="action" value="delete">
+    </form>
+
+    <script>
+        // Auto-actualizar preview cuando cambian los números
+        document.getElementById('number1').addEventListener('input', updatePreview);
+        document.getElementById('number2').addEventListener('input', updatePreview);
+        document.getElementById('visible').addEventListener('change', updatePreview);
+
+        function updatePreview() {
+            const num1 = document.getElementById('number1').value;
+            const num2 = document.getElementById('number2').value;
+            const visible = document.getElementById('visible').checked;
+
+            // Esta función podría actualizar el preview en tiempo real
+            console.log('Preview actualizado:', { num1, num2, visible });
+        }
+    </script>
+</body>
+</html>

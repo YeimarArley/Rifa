@@ -781,5 +781,82 @@
                 console.error('No se pudo cargar footer consolidado:', err);
             });
     </script>
+
+    <!-- Agregar justo antes de </body> -->
+<script>
+(function() {
+    'use strict';
+    
+    const CHECK_INTERVAL = 10000; // 10 segundos
+    
+    function initDOMElements() {
+        const tickets = document.querySelectorAll('.tickets .ticket');
+        
+        if (tickets.length >= 2) {
+            return {
+                ticket1: tickets[0],
+                ticket2: tickets[1]
+            };
+        }
+        return null;
+    }
+    
+    function updateTicketContent(ticket, number) {
+        if (!ticket) return;
+        
+        const numberElement = ticket.querySelector('.ticket-content p');
+        
+        if (numberElement) {
+            if (number) {
+                numberElement.textContent = number;
+                numberElement.style.fontSize = '1.8em';
+            } else {
+                numberElement.textContent = 'PRÓXIMAMENTE';
+                numberElement.style.fontSize = '1em';
+            }
+        }
+    }
+    
+    async function updateBlessedNumbers() {
+        try {
+            const response = await fetch('/api/blessed_numbers_status');
+            
+            if (!response.ok) {
+                console.warn('Error en API:', response.status);
+                return;
+            }
+            
+            const data = await response.json();
+            const tickets = initDOMElements();
+            
+            if (!tickets) return;
+            
+            if (data.visible && data.numbers && data.numbers.length > 0) {
+                updateTicketContent(tickets.ticket1, data.numbers[0] || null);
+                updateTicketContent(tickets.ticket2, data.numbers[1] || null);
+            } else {
+                updateTicketContent(tickets.ticket1, null);
+                updateTicketContent(tickets.ticket2, null);
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+    
+    function init() {
+        updateBlessedNumbers();
+        setInterval(updateBlessedNumbers, CHECK_INTERVAL);
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+
+
 </body>
 </html>

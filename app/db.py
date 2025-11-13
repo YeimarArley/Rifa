@@ -24,11 +24,7 @@ def get_postgres_connection():
 
 
 def get_db_connection():
-    """Return a connection to Postgres if available, otherwise a sqlite3 connection.
-
-    The caller should be aware of the connection type (psycopg2 vs sqlite3) and use
-    appropriate cursor methods. This helper tries Postgres first and falls back to sqlite.
-    """
+    """Return a connection to Postgres if available, otherwise a sqlite3 connection."""
     try:
         conn = get_postgres_connection()
         return conn
@@ -41,7 +37,6 @@ def get_db_connection():
 
 def init_db():
     """Initialize database tables in Postgres if available, otherwise in sqlite file."""
-    # Try Postgres
     try:
         conn = get_postgres_connection()
         c = conn.cursor()
@@ -57,14 +52,36 @@ def init_db():
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       deleted_at TIMESTAMP,
-                      notes TEXT)''')
+                      notes TEXT,
+                      full_name VARCHAR(255),
+                      document_type VARCHAR(50),
+                      document_number VARCHAR(100),
+                      phone VARCHAR(50),
+                      address TEXT,
+                      payment_method VARCHAR(100),
+                      bank_name VARCHAR(100),
+                      transaction_id VARCHAR(255),
+                      franchise VARCHAR(100),
+                      response_code VARCHAR(50),
+                      confirmed_at TIMESTAMP)''')
         
         # Tabla de números asignados
         c.execute('''CREATE TABLE IF NOT EXISTS assigned_numbers
                      (number INTEGER PRIMARY KEY,
                       invoice_id VARCHAR(255),
                       assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      reserved_until TIMESTAMP,
+                      is_confirmed BOOLEAN DEFAULT FALSE,
                       FOREIGN KEY(invoice_id) REFERENCES purchases(invoice_id))''')
+        
+        # Tabla de configuración de números benditos
+        c.execute('''CREATE TABLE IF NOT EXISTS blessed_numbers_config
+                     (id SERIAL PRIMARY KEY,
+                      visible BOOLEAN DEFAULT FALSE,
+                      scheduled_date TIMESTAMP,
+                      numbers TEXT,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         # Tabla de usuarios admin
         c.execute('''CREATE TABLE IF NOT EXISTS admin_users
@@ -93,6 +110,7 @@ def init_db():
         c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_email ON purchases(email)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_invoice ON assigned_numbers(invoice_id)''')
+        c.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_confirmed ON assigned_numbers(is_confirmed)''')
         
         conn.commit()
         conn.close()
@@ -118,13 +136,35 @@ def init_db():
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                        deleted_at TIMESTAMP,
-                       notes TEXT)''')
+                       notes TEXT,
+                       full_name TEXT,
+                       document_type TEXT,
+                       document_number TEXT,
+                       phone TEXT,
+                       address TEXT,
+                       payment_method TEXT,
+                       bank_name TEXT,
+                       transaction_id TEXT,
+                       franchise TEXT,
+                       response_code TEXT,
+                       confirmed_at TIMESTAMP)''')
         
         # Tabla de números asignados
         sc.execute('''CREATE TABLE IF NOT EXISTS assigned_numbers
                       (number INTEGER PRIMARY KEY,
                        invoice_id TEXT,
-                       assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                       assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                       reserved_until TIMESTAMP,
+                       is_confirmed INTEGER DEFAULT 0)''')
+        
+        # Tabla de configuración de números benditos
+        sc.execute('''CREATE TABLE IF NOT EXISTS blessed_numbers_config
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       visible INTEGER DEFAULT 0,
+                       scheduled_date TEXT,
+                       numbers TEXT,
+                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         # Tabla de usuarios admin
         sc.execute('''CREATE TABLE IF NOT EXISTS admin_users
@@ -159,10 +199,7 @@ def _is_sqlite_conn(conn):
 
 
 def run_query(query, params=None, fetchone=False, fetchall=False, commit=False):
-    """Run a SQL query against Postgres or sqlite. Translates %s placeholders to ? for sqlite.
-
-    Returns fetched data if requested. Closes the connection after running.
-    """
+    """Run a SQL query against Postgres or sqlite."""
     conn = None
     cur = None
     try:
@@ -200,14 +237,33 @@ def run_query(query, params=None, fetchone=False, fetchall=False, commit=False):
 
 
 def count_assigned_numbers():
-    row = run_query("SELECT COUNT(*) FROM assigned_numbers", fetchone=True)
-    if not row:
-        return 0
-    # row can be a tuple (count,) or a single value depending on driver
+    """Cuenta números asignados confirmados - CORREGIDO PARA POSTGRESQL"""
     try:
-        return int(row[0])
-    except Exception:
-        return int(row)
+        conn = get_db_connection()
+        
+        # Detectar si es PostgreSQL o SQLite
+        if _is_sqlite_conn(conn):
+            # SQLite usa INTEGER (0 o 1)
+            row = run_query(
+                "SELECT COUNT(*) FROM assigned_numbers WHERE is_confirmed = 1", 
+                fetchone=True
+            )
+        else:
+            # PostgreSQL usa BOOLEAN (TRUE/FALSE)
+            row = run_query(
+                "SELECT COUNT(*) FROM assigned_numbers WHERE is_confirmed = TRUE", 
+                fetchone=True
+            )
+        
+        if not row:
+            return 0
+        try:
+            return int(row[0])
+        except Exception:
+            return int(row)
+    except Exception as e:
+        logger.error(f"Error counting assigned numbers: {e}")
+        return 0
 
 
 def get_purchase_by_id(purchase_id):
@@ -239,37 +295,6 @@ def delete_purchase(purchase_id):
         if not purchase:
             return False
         
-        # Obtener invoice_id (puede ser índice 1 dependiendo del tipo de conexión)
-        invoice_id = purchase[1] if isinstance(purchase, (list, tuple)) else purchase.get('invoice_id')
-        
-        # Eliminar números asignados
-        run_query(
-            "DELETE FROM assigned_numbers WHERE invoice_id = %s",
-            params=(invoice_id,),
-            commit=True
-        )
-        
-        # Eliminar la compra (soft delete con marca de fecha)
-        run_query(
-            "UPDATE purchases SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP WHERE id = %s",
-            params=(purchase_id,),
-            commit=True
-        )
-        
-        return True
-    except Exception as e:
-        logger.error(f"Error deleting purchase {purchase_id}: {e}")
-        return False
-
-
-def force_delete_purchase(purchase_id):
-    """Elimina permanentemente una compra (hard delete)"""
-    try:
-        # Obtener la compra primero
-        purchase = get_purchase_by_id(purchase_id)
-        if not purchase:
-            return False
-        
         # Obtener invoice_id
         invoice_id = purchase[1] if isinstance(purchase, (list, tuple)) else purchase.get('invoice_id')
         
@@ -280,16 +305,16 @@ def force_delete_purchase(purchase_id):
             commit=True
         )
         
-        # Eliminar la compra
+        # Eliminar la compra (soft delete)
         run_query(
-            "DELETE FROM purchases WHERE id = %s",
+            "UPDATE purchases SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP WHERE id = %s",
             params=(purchase_id,),
             commit=True
         )
         
         return True
     except Exception as e:
-        logger.error(f"Error force deleting purchase {purchase_id}: {e}")
+        logger.error(f"Error deleting purchase {purchase_id}: {e}")
         return False
 
 
@@ -310,4 +335,3 @@ def log_audit(admin_user_id, action, table_name, record_id, old_values=None, new
     except Exception as e:
         logger.error(f"Error logging audit: {e}")
         return False
-
