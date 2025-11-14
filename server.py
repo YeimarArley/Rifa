@@ -6,8 +6,8 @@ import hmac
 import uuid
 import json
 from datetime import datetime, timedelta
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart

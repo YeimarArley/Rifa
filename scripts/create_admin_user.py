@@ -12,7 +12,7 @@ import re
 # Agregar el directorio raíz al path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app import db as app_db
+from . import db as app_db
 from dotenv import load_dotenv
 
 load_dotenv()

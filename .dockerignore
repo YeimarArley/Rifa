@@ -1,29 +1,67 @@
-__pycache__
-*.pyc
-*.pyo
-*.pyd
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 .Python
-env
-venv
-.venv
-pip-log.txt
-pip-delete-this-directory.txt
-.tox
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git
-.mypy_cache
-.pytest_cache
-.hypothesis
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Archivos locales
 .env
-.DS_Store
+.env.local
+.env.production
 *.db
 *.sqlite
 *.sqlite3
-node_modules
-npm-debug.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+
+# Documentación
+*.md
+README.md
+docs/
+CAMBIOS_REALIZADOS.md
+ESTRUCTURA_ARCHIVOS.md
+INSTALACION_PASO_A_PASO.md
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials
+credentials.txt
+*.key
+*.pem
+
+# Scripts de desarrollo
+scripts/
+clean_*.sh

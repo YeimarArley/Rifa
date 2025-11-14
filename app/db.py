@@ -1,8 +1,8 @@
 import os
-import psycopg2
+import psycopg 
 import sqlite3
 import logging
-from psycopg2.extras import RealDictCursor
+from psycopg.rows import dict_row
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -16,24 +16,18 @@ DB_PASSWORD = os.getenv('DB_PASSWORD', 'rifa_password')
 
 
 def get_postgres_connection():
-    """Crea conexión a PostgreSQL con manejo de encoding"""
+    """Crea conexión a PostgreSQL con psycopg 3"""
     try:
         # Opción 1: Usar DATABASE_URL si está disponible
         database_url = os.getenv('DATABASE_URL')
         if database_url:
-            # Parsear la URL y conectar
-            return psycopg2.connect(database_url, sslmode='require')
+            # psycopg 3 acepta directamente la URL
+            return psycopg.connect(database_url, autocommit=False)
         
         # Opción 2: Usar credenciales individuales
-        return psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            sslmode='require',
-            connect_timeout=10
-        )
+        conninfo = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD} sslmode=require"
+        return psycopg.connect(conninfo, autocommit=False)
+        
     except Exception as e:
         logger.error(f"Error conectando a PostgreSQL: {e}")
         raise
@@ -56,10 +50,10 @@ def init_db():
     """Inicializa las tablas de la base de datos"""
     try:
         conn = get_postgres_connection()
-        c = conn.cursor()
+        cur = conn.cursor()
         
         # Tabla de compras
-        c.execute('''CREATE TABLE IF NOT EXISTS purchases
+        cur.execute('''CREATE TABLE IF NOT EXISTS purchases
                      (id SERIAL PRIMARY KEY,
                       invoice_id VARCHAR(255) UNIQUE NOT NULL,
                       amount DECIMAL(10,2) NOT NULL,
@@ -83,7 +77,7 @@ def init_db():
                       confirmed_at TIMESTAMP)''')
         
         # Tabla de números asignados
-        c.execute('''CREATE TABLE IF NOT EXISTS assigned_numbers
+        cur.execute('''CREATE TABLE IF NOT EXISTS assigned_numbers
                      (number INTEGER PRIMARY KEY,
                       invoice_id VARCHAR(255),
                       assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -91,7 +85,7 @@ def init_db():
                       is_confirmed BOOLEAN DEFAULT FALSE)''')
         
         # Tabla de configuración de números benditos
-        c.execute('''CREATE TABLE IF NOT EXISTS blessed_numbers_config
+        cur.execute('''CREATE TABLE IF NOT EXISTS blessed_numbers_config
                      (id SERIAL PRIMARY KEY,
                       visible BOOLEAN DEFAULT FALSE,
                       scheduled_date TIMESTAMP,
@@ -100,7 +94,7 @@ def init_db():
                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         # Tabla de usuarios admin
-        c.execute('''CREATE TABLE IF NOT EXISTS admin_users
+        cur.execute('''CREATE TABLE IF NOT EXISTS admin_users
                      (id SERIAL PRIMARY KEY,
                       email VARCHAR(255) UNIQUE NOT NULL,
                       password_hash VARCHAR(255) NOT NULL,
@@ -109,7 +103,7 @@ def init_db():
                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         # Tabla de auditoría
-        c.execute('''CREATE TABLE IF NOT EXISTS audit_log
+        cur.execute('''CREATE TABLE IF NOT EXISTS audit_log
                      (id SERIAL PRIMARY KEY,
                       admin_user_id INTEGER,
                       action VARCHAR(50),
@@ -120,14 +114,15 @@ def init_db():
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         # Crear índices
-        c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_status ON purchases(status)''')
-        c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_email ON purchases(email)''')
-        c.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at)''')
-        c.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_invoice ON assigned_numbers(invoice_id)''')
-        c.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_confirmed ON assigned_numbers(is_confirmed)''')
-        c.execute('''CREATE INDEX IF NOT EXISTS idx_admin_email ON admin_users(email)''')
+        cur.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_status ON purchases(status)''')
+        cur.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_email ON purchases(email)''')
+        cur.execute('''CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at)''')
+        cur.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_invoice ON assigned_numbers(invoice_id)''')
+        cur.execute('''CREATE INDEX IF NOT EXISTS idx_assigned_confirmed ON assigned_numbers(is_confirmed)''')
+        cur.execute('''CREATE INDEX IF NOT EXISTS idx_admin_email ON admin_users(email)''')
         
         conn.commit()
+        cur.close()
         conn.close()
         logger.info('✅ Tablas PostgreSQL inicializadas correctamente')
         return
@@ -226,7 +221,8 @@ def run_query(query, params=None, fetchone=False, fetchall=False, commit=False):
         q = query
         p = params or ()
         
-        # Convertir placeholders para SQLite
+        # psycopg 3 usa placeholders %s igual que psycopg2
+        # Convertir solo para SQLite
         if _is_sqlite_conn(conn):
             q = query.replace('%s', '?')
 

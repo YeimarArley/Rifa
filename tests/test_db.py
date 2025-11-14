@@ -1,5 +1,5 @@
 import unittest
-from app import db
+from . import db
 
 
 class DBTestCase(unittest.TestCase):
@@ -22,7 +22,7 @@ class DBTestCase(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 import unittest
-from app import db
+from . import db
 
 class DBTestCase(unittest.TestCase):
     def test_count_assigned_numbers(self):
