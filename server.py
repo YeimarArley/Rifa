@@ -100,9 +100,9 @@ if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
 mail = Mail(app)
 
 # ==================== URLs ====================
-BASE_URL = os.getenv('BASE_URL', 'https://familiones.com')
-RESPONSE_URL = os.getenv('RESPONSE_URL', 'https://familiones.com/confirmation')
-CONFIRMATION_URL = os.getenv('CONFIRMATION_URL', 'https://familiones.com/confirmation')
+BASE_URL = os.getenv('BASE_URL', 'https://laparladelosniches.com')
+RESPONSE_URL = os.getenv('RESPONSE_URL', 'https://laparladelosniches.com/response')
+CONFIRMATION_URL = os.getenv('CONFIRMATION_URL', 'https://laparladelosniches.com/confirmation')
 
 # ==================== ALMACENAMIENTO DE TOKENS ====================
 password_reset_tokens = {}
