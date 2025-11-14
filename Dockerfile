@@ -59,5 +59,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/ || exit 1
 
+
+# Verificar conectividad básica
+RUN pip install psycopg[binary]>=3.2.3    
 # Comando de inicio (Railway usa $PORT en vez de 8080 fijo)
 CMD gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 4 --threads 2 --timeout 120 --access-logfile - --error-logfile - server:app
