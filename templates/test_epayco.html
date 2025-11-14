@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test ePayco - Rifa</title>
-    <script src="https://checkout.epayco.co/checkout.js"></script>
     <style>
         * {
             margin: 0;
@@ -196,7 +195,31 @@
         </div>
     </div>
 
+    <!-- Cargar ePayco al final del body -->
+    <script src="https://checkout.epayco.co/checkout.js"></script>
+    
     <script>
+        // Esperar a que ePayco esté completamente cargado
+        let epaycoReady = false;
+        
+        // Verificar cada 100ms si ePayco está listo
+        const checkEpayco = setInterval(() => {
+            if (typeof ePayco !== 'undefined' && ePayco.checkout) {
+                epaycoReady = true;
+                clearInterval(checkEpayco);
+                console.log('✅ ePayco cargado y listo');
+                addLog('✅ ePayco SDK completamente cargado');
+            }
+        }, 100);
+        
+        // Timeout de 10 segundos
+        setTimeout(() => {
+            if (!epaycoReady) {
+                clearInterval(checkEpayco);
+                addLog('❌ Error: ePayco no se cargó en 10 segundos');
+            }
+        }, 10000);
+        
         // Detectar dominio actual
         document.getElementById('currentDomain').textContent = window.location.hostname;
 
@@ -205,12 +228,25 @@
             const loading = document.getElementById('loading');
             const statusLog = document.getElementById('statusLog');
             
+            // Verificar que ePayco esté cargado
+            if (!epaycoReady || typeof ePayco === 'undefined') {
+                addLog('❌ Error: ePayco aún no está cargado. Espera unos segundos e intenta de nuevo.');
+                return;
+            }
+            
+            if (!ePayco.checkout || typeof ePayco.checkout.configure !== 'function') {
+                addLog('❌ Error: ePayco.checkout no está disponible');
+                addLog('Tipo de ePayco: ' + typeof ePayco);
+                addLog('ePayco.checkout: ' + typeof ePayco.checkout);
+                return;
+            }
+            
             // Mostrar loading
             loading.classList.add('active');
             
             // Log inicio
             addLog('🚀 Iniciando test de pago...');
-            addLog(`💰 Monto: $${amount.toLocaleString('es-CO')} COP`);
+            addLog(`💰 Monto: ${amount.toLocaleString('es-CO')} COP`);
             addLog(`🎫 Números: ${numNumbers}`);
             
             try {
@@ -284,6 +320,11 @@
             // Verificar si ePayco está cargado
             if (typeof ePayco !== 'undefined') {
                 addLog('✅ ePayco SDK cargado correctamente');
+                if (ePayco.checkout && typeof ePayco.checkout.configure === 'function') {
+                    addLog('✅ ePayco.checkout disponible');
+                } else {
+                    addLog('⚠️ ePayco cargado pero checkout no disponible');
+                }
             } else {
                 addLog('❌ ePayco SDK NO está cargado');
             }

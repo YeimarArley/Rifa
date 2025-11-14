@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rifa-Familiones</title>
     <link rel="icon" href="logo.svg" type="image/svg+xml">
-    <script src="https://checkout.epayco.co/checkout.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -1178,8 +1177,23 @@ footer::before {
             document.getElementById('previewModal').style.display = 'none';
         }
 
+        // Verificar que ePayco esté cargado
+        let epaycoReady = false;
+        const checkEpayco = setInterval(() => {
+            if (typeof ePayco !== 'undefined' && ePayco.checkout) {
+                epaycoReady = true;
+                clearInterval(checkEpayco);
+                console.log('✅ ePayco listo');
+            }
+        }, 100);
+
         // Function to show purchase modal using ePayco checkout
         function showPurchaseModal(amount, description, count) {
+            if (!epaycoReady) {
+                alert('⏳ Cargando pasarela de pago... Intenta de nuevo en unos segundos.');
+                return;
+            }
+
             ePayco.checkout.configure({
                 key: '70b19a05a3f3374085061d1bfd386a8b',
                 test: false
@@ -1339,10 +1353,7 @@ footer::before {
 })();
 </script>
 
-
-
-
-
+<script src="https://checkout.epayco.co/checkout.js"></script>
 
 </body>
 </html>
