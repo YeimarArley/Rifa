@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test ePayco - Rifa</title>
+    <script src="https://checkout.epayco.co/checkout.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .info-box h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #666;
+            line-height: 1.6;
+            margin: 5px 0;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
+        }
+
+        .status {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .status h4 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+
+        .status pre {
+            background: #263238;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de Pasarela ePayco</h1>
+
+        <div class="info-box">
+            <h3>📋 Configuración Actual</h3>
+            <p><strong>Dominio:</strong> <span id="currentDomain">Detectando...</span></p>
+            <p><strong>Public Key:</strong> 70b19a05a3f3374085061d1bfd386a8b</p>
+            <p><strong>Modo:</strong> Producción</p>
+        </div>
+
+        <div class="alert alert-warning">
+            <strong>⚠️ Importante:</strong> Este es un test con valores reales. 
+            Usa el paquete más pequeño ($25,000 COP).
+        </div>
+
+        <div class="btn-grid">
+            <button class="btn btn-primary" onclick="testPayment(25000, 4)">
+                💳 Test $25,000<br>
+                <small>(4 números)</small>
+            </button>
+            <button class="btn btn-secondary" onclick="checkConfiguration()">
+                🔍 Verificar Config
+            </button>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Abriendo pasarela de pago...</p>
+        </div>
+
+        <div class="status">
+            <h4>📊 Estado de la Prueba</h4>
+            <div id="statusLog">
+                <p style="color: #666;">Esperando prueba...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Detectar dominio actual
+        document.getElementById('currentDomain').textContent = window.location.hostname;
+
+        // Función para probar pago
+        function testPayment(amount, numNumbers) {
+            const loading = document.getElementById('loading');
+            const statusLog = document.getElementById('statusLog');
+            
+            // Mostrar loading
+            loading.classList.add('active');
+            
+            // Log inicio
+            addLog('🚀 Iniciando test de pago...');
+            addLog(`💰 Monto: $${amount.toLocaleString('es-CO')} COP`);
+            addLog(`🎫 Números: ${numNumbers}`);
+            
+            try {
+                // Configurar ePayco
+                addLog('⚙️ Configurando ePayco...');
+                ePayco.checkout.configure({
+                    key: '70b19a05a3f3374085061d1bfd386a8b',
+                    test: false
+                });
+                addLog('✅ ePayco configurado');
+
+                // Generar invoice único
+                const invoice = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+                addLog(`📝 Invoice generado: ${invoice}`);
+
+                // Obtener URL base actual
+                const baseUrl = window.location.origin;
+                addLog(`🌐 URL Base: ${baseUrl}`);
+
+                // Configurar checkout
+                const checkoutConfig = {
+                    name: "Rifa 5 Millones - TEST",
+                    description: `Compra de ${numNumbers} números de rifa`,
+                    invoice: invoice,
+                    currency: "COP",
+                    amount: amount.toString(),
+                    tax_base: "0",
+                    tax: "0",
+                    country: "co",
+                    lang: "es",
+                    external: "false",
+                    response: `${baseUrl}/response`,
+                    confirmation: `${baseUrl}/confirmation`,
+                    methodsDisable: [],
+                    email_billing: "",
+                    name_billing: "",
+                    address_billing: "",
+                    type_doc_billing: "",
+                    mobilephone_billing: "",
+                    number_doc_billing: ""
+                };
+
+                addLog('📋 Configuración del checkout:');
+                addLog(`<pre>${JSON.stringify(checkoutConfig, null, 2)}</pre>`);
+
+                // Abrir checkout
+                addLog('🎨 Abriendo checkout de ePayco...');
+                setTimeout(() => {
+                    loading.classList.remove('active');
+                }, 2000);
+
+                ePayco.checkout.open(checkoutConfig);
+                
+                addLog('✅ Checkout abierto correctamente');
+
+            } catch (error) {
+                loading.classList.remove('active');
+                addLog(`❌ ERROR: ${error.message}`);
+                console.error('Error completo:', error);
+            }
+        }
+
+        // Función para verificar configuración
+        function checkConfiguration() {
+            addLog('🔍 Verificando configuración...');
+            addLog(`📍 Protocolo: ${window.location.protocol}`);
+            addLog(`🌐 Hostname: ${window.location.hostname}`);
+            addLog(`🔌 Puerto: ${window.location.port || 'default'}`);
+            addLog(`📂 Path: ${window.location.pathname}`);
+            
+            // Verificar si ePayco está cargado
+            if (typeof ePayco !== 'undefined') {
+                addLog('✅ ePayco SDK cargado correctamente');
+            } else {
+                addLog('❌ ePayco SDK NO está cargado');
+            }
+
+            // Verificar HTTPS
+            if (window.location.protocol === 'https:') {
+                addLog('✅ Conexión segura (HTTPS)');
+            } else {
+                addLog('⚠️ Conexión NO segura (HTTP) - ePayco requiere HTTPS');
+            }
+
+            // Verificar dominio
+            if (window.location.hostname === 'laparladelosniches.com' || 
+                window.location.hostname === 'www.laparladelosniches.com') {
+                addLog('✅ Dominio personalizado detectado');
+            } else if (window.location.hostname.includes('railway.app')) {
+                addLog('⚠️ Usando dominio temporal de Railway');
+            } else {
+                addLog('⚠️ Dominio desconocido');
+            }
+        }
+
+        // Función auxiliar para agregar logs
+        function addLog(message) {
+            const statusLog = document.getElementById('statusLog');
+            const timestamp = new Date().toLocaleTimeString('es-CO');
+            
+            if (statusLog.querySelector('p')?.textContent === 'Esperando prueba...') {
+                statusLog.innerHTML = '';
+            }
+            
+            const logEntry = document.createElement('p');
+            logEntry.style.margin = '5px 0';
+            logEntry.style.fontSize = '14px';
+            
+            if (message.includes('<pre>')) {
+                logEntry.innerHTML = `[${timestamp}] ${message}`;
+            } else {
+                logEntry.textContent = `[${timestamp}] ${message}`;
+            }
+            
+            statusLog.appendChild(logEntry);
+            statusLog.scrollTop = statusLog.scrollHeight;
+        }
+
+        // Ejecutar verificación al cargar
+        window.addEventListener('load', () => {
+            addLog('🎯 Página de test cargada');
+            checkConfiguration();
+        });
+    </script>
+</body>
+</html>

@@ -658,8 +658,10 @@ def api_blessed_numbers_status():
             'numbers': [], 
             'has_numbers': False
         })
-
-
+# ==================== PÁGINA DE PRUEBAS EPAYCO ====================
+@app.route('/test_epayco')
+def test_epayco():
+    return render_template('test_epayco.html')
 # ==================== RUTAS PROTEGIDAS ====================
 
 @app.route('/database')
