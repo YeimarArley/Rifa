@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Real ePayco - Rifa 5 Millones</title>
+    <title>Test ePayco - Rifa</title>
     <style>
         * {
             margin: 0;
@@ -15,243 +15,125 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             padding: 20px;
         }
 
         .container {
-            max-width: 800px;
-            margin: 0 auto;
             background: white;
             padding: 40px;
             border-radius: 15px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
         }
 
         h1 {
             color: #2c3e50;
             text-align: center;
-            margin-bottom: 10px;
-            font-size: 2em;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #7f8c8d;
             margin-bottom: 30px;
-            font-size: 1.1em;
         }
 
-        .alert {
+        .info-box {
+            background: #f8f9fa;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 30px;
-            border-left: 5px solid;
-        }
-
-        .alert-info {
-            background: #e3f2fd;
-            border-color: #2196F3;
-            color: #1565c0;
-        }
-
-        .alert-warning {
-            background: #fff3cd;
-            border-color: #ffc107;
-            color: #856404;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            border-color: #28a745;
-            color: #155724;
-        }
-
-        .alert h3 {
-            margin-bottom: 10px;
-            font-size: 1.2em;
-        }
-
-        .alert ul {
-            margin-left: 20px;
-            line-height: 1.8;
-        }
-
-        .config-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .config-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
             border-left: 4px solid #4CAF50;
         }
 
-        .config-item strong {
-            display: block;
+        .info-box h3 {
             color: #4CAF50;
-            margin-bottom: 5px;
-            font-size: 0.9em;
+            margin-bottom: 10px;
         }
 
-        .config-item span {
-            color: #2c3e50;
-            font-size: 1.1em;
+        .info-box p {
+            color: #666;
+            line-height: 1.6;
+            margin: 5px 0;
         }
 
-        .test-section {
-            background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            border: 2px solid #4CAF50;
-        }
-
-        .test-section h2 {
-            color: #4CAF50;
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
             margin-bottom: 20px;
-            text-align: center;
-            font-size: 1.5em;
-        }
-
-        .payment-card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-
-        .payment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #4CAF50;
-        }
-
-        .payment-header h3 {
-            color: #2c3e50;
-            font-size: 1.3em;
-        }
-
-        .price {
-            font-size: 2em;
-            font-weight: bold;
-            color: #4CAF50;
-        }
-
-        .payment-details {
-            margin-bottom: 20px;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-
-        .detail-label {
-            color: #7f8c8d;
-            font-weight: 600;
-        }
-
-        .detail-value {
-            color: #2c3e50;
-            font-weight: 500;
         }
 
         .btn {
-            width: 100%;
-            padding: 18px 30px;
+            padding: 15px 20px;
             border: none;
-            border-radius: 10px;
-            font-size: 1.2em;
-            font-weight: 700;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
             text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
 
-        .btn-primary:hover:not(:disabled) {
+        .btn-primary:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.5);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
         }
 
         .btn-secondary {
             background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
             color: white;
-            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
         }
 
-        .btn-secondary:hover:not(:disabled) {
+        .btn-secondary:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(33, 150, 243, 0.5);
+            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
         }
 
-        .status-log {
+        .status {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .status h4 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+
+        .status pre {
             background: #263238;
             color: #00ff00;
-            padding: 20px;
-            border-radius: 10px;
-            max-height: 400px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.6;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
         }
 
-        .status-log p {
-            margin: 5px 0;
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
 
-        .status-log .error {
-            color: #ff5252;
-        }
-
-        .status-log .success {
-            color: #4CAF50;
-        }
-
-        .status-log .warning {
-            color: #ffc107;
-        }
-
-        .status-log .info {
-            color: #2196F3;
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
         }
 
         .loading {
             display: none;
             text-align: center;
-            padding: 30px;
-            background: rgba(76, 175, 80, 0.1);
-            border-radius: 10px;
-            margin: 20px 0;
+            padding: 20px;
         }
 
         .loading.active {
@@ -259,286 +141,145 @@
         }
 
         .spinner {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #4CAF50;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 10px;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        .loading-text {
-            color: #4CAF50;
-            font-weight: 600;
-            font-size: 1.1em;
-        }
-
-        .checklist {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 30px;
-        }
-
-        .checklist h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-        }
-
-        .checklist-item {
-            padding: 10px;
-            margin: 8px 0;
-            background: white;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .checklist-item.pending {
-            border-left: 4px solid #ffc107;
-        }
-
-        .checklist-item.checking {
-            border-left: 4px solid #2196F3;
-            animation: pulse 1.5s infinite;
-        }
-
-        .checklist-item.success {
-            border-left: 4px solid #4CAF50;
-        }
-
-        .checklist-item.error {
-            border-left: 4px solid #f44336;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
-
-            .config-grid {
-                grid-template-columns: 1fr;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧪 Test de Compra Real</h1>
-        <p class="subtitle">Validación completa del flujo de pago ePayco</p>
+        <h1>🧪 Test de Pasarela ePayco</h1>
 
-        <div class="alert alert-info">
-            <h3>ℹ️ Sobre este test</h3>
-            <ul>
-                <li>Este test usa <strong>valores reales</strong> de ePayco en producción</li>
-                <li>Comprarás <strong>1 número por $5,000 COP</strong></li>
-                <li>Se validará: pago, base de datos, emails y asignación de números</li>
-                <li>Usa una tarjeta real o PSE para probar</li>
-            </ul>
+        <div class="info-box">
+            <h3>📋 Configuración Actual</h3>
+            <p><strong>Dominio:</strong> <span id="currentDomain">Detectando...</span></p>
+            <p><strong>Public Key:</strong> 70b19a05a3f3374085061d1bfd386a8b</p>
+            <p><strong>Modo:</strong> Producción</p>
         </div>
 
-        <div class="config-grid">
-            <div class="config-item">
-                <strong>🌐 Dominio</strong>
-                <span id="currentDomain">Cargando...</span>
-            </div>
-            <div class="config-item">
-                <strong>🔒 Protocolo</strong>
-                <span id="currentProtocol">Cargando...</span>
-            </div>
-            <div class="config-item">
-                <strong>🔑 Public Key</strong>
-                <span>70b19a0...6a8b</span>
-            </div>
-            <div class="config-item">
-                <strong>⚙️ Modo</strong>
-                <span style="color: #f44336; font-weight: bold;">PRODUCCIÓN</span>
-            </div>
+        <div class="alert alert-warning">
+            <strong>⚠️ Importante:</strong> Este es un test con valores reales. 
+            Usa el paquete más pequeño ($25,000 COP).
         </div>
 
-        <div class="test-section">
-            <h2>💳 Compra de Prueba</h2>
-            
-            <div class="payment-card">
-                <div class="payment-header">
-                    <h3>🎫 1 Número de Rifa</h3>
-                    <div class="price">$5,000</div>
-                </div>
-
-                <div class="payment-details">
-                    <div class="detail-row">
-                        <span class="detail-label">📦 Producto:</span>
-                        <span class="detail-value">1 Número de la Suerte</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">💰 Precio:</span>
-                        <span class="detail-value">$5,000 COP</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">🏆 Premio:</span>
-                        <span class="detail-value">5 Millones</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">🎯 Tipo:</span>
-                        <span class="detail-value" style="color: #f44336; font-weight: bold;">TEST REAL</span>
-                    </div>
-                </div>
-
-                <button id="btnPay" class="btn btn-primary" onclick="startRealTest()">
-                    <span>💳</span>
-                    <span>Iniciar Test de Pago Real</span>
-                </button>
-            </div>
-
-            <button class="btn btn-secondary" onclick="checkFullConfiguration()" style="margin-top: 15px;">
-                <span>🔍</span>
-                <span>Verificar Configuración Completa</span>
+        <div class="btn-grid">
+            <button class="btn btn-primary" onclick="testPayment(25000, 4)">
+                💳 Test $25,000<br>
+                <small>(4 números)</small>
+            </button>
+            <button class="btn btn-secondary" onclick="checkConfiguration()">
+                🔍 Verificar Config
             </button>
         </div>
 
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            <p class="loading-text">Abriendo pasarela de pago ePayco...</p>
-            <p style="color: #7f8c8d; margin-top: 10px;">Se abrirá una ventana emergente</p>
+            <p>Abriendo pasarela de pago...</p>
         </div>
 
-        <div class="checklist" id="checklistSection" style="display: none;">
-            <h3>✅ Checklist de Validación</h3>
-            <div id="checklist">
-                <div class="checklist-item pending" id="check-sdk">
-                    <span>⏳</span> SDK de ePayco cargado
-                </div>
-                <div class="checklist-item pending" id="check-payment">
-                    <span>⏳</span> Pago procesado por ePayco
-                </div>
-                <div class="checklist-item pending" id="check-database">
-                    <span>⏳</span> Guardado en base de datos
-                </div>
-                <div class="checklist-item pending" id="check-numbers">
-                    <span>⏳</span> Número asignado correctamente
-                </div>
-                <div class="checklist-item pending" id="check-email">
-                    <span>⏳</span> Email de confirmación enviado
-                </div>
-            </div>
-        </div>
-
-        <div class="alert alert-warning" style="margin-top: 30px;">
-            <h3>📋 Logs del Sistema</h3>
-            <div class="status-log" id="statusLog">
-                <p class="info">💡 Sistema iniciado. Esperando acción del usuario...</p>
+        <div class="status">
+            <h4>📊 Estado de la Prueba</h4>
+            <div id="statusLog">
+                <p style="color: #666;">Esperando prueba...</p>
             </div>
         </div>
     </div>
 
-    <!-- ePayco SDK -->
+    <!-- Cargar ePayco al final del body -->
     <script src="https://checkout.epayco.co/checkout.js"></script>
     
     <script>
+        // Esperar a que ePayco esté completamente cargado
         let epaycoReady = false;
-        let testInvoiceId = null;
-
-        // Detectar configuración al cargar
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('currentDomain').textContent = window.location.hostname;
-            document.getElementById('currentProtocol').textContent = window.location.protocol === 'https:' 
-                ? '✅ HTTPS' 
-                : '⚠️ HTTP';
-            
-            addLog('🎯 Página de test cargada correctamente', 'success');
-            addLog(`📍 URL: ${window.location.href}`, 'info');
-            
-            // Verificar carga de ePayco
-            checkEpaycoSDK();
-        });
-
-        // Verificar SDK de ePayco
-        function checkEpaycoSDK() {
-            const checkInterval = setInterval(() => {
-                if (typeof ePayco !== 'undefined' && ePayco.checkout) {
-                    epaycoReady = true;
-                    clearInterval(checkInterval);
-                    addLog('✅ SDK de ePayco cargado exitosamente', 'success');
-                    updateChecklistItem('check-sdk', 'success', '✅ SDK de ePayco cargado');
-                }
-            }, 100);
-
-            setTimeout(() => {
-                if (!epaycoReady) {
-                    clearInterval(checkInterval);
-                    addLog('❌ Error: ePayco SDK no se cargó en 10 segundos', 'error');
-                    updateChecklistItem('check-sdk', 'error', '❌ SDK de ePayco no cargó');
-                }
-            }, 10000);
-        }
-
-        // Iniciar test real
-        function startRealTest() {
-            const btnPay = document.getElementById('btnPay');
-            const loading = document.getElementById('loading');
-            const checklistSection = document.getElementById('checklistSection');
-
+        
+        // Verificar cada 100ms si ePayco está listo
+        const checkEpayco = setInterval(() => {
+            if (typeof ePayco !== 'undefined' && ePayco.checkout) {
+                epaycoReady = true;
+                clearInterval(checkEpayco);
+                console.log('✅ ePayco cargado y listo');
+                addLog('✅ ePayco SDK completamente cargado');
+            }
+        }, 100);
+        
+        // Timeout de 10 segundos
+        setTimeout(() => {
             if (!epaycoReady) {
-                addLog('❌ Error: ePayco SDK no está listo', 'error');
-                alert('El sistema de pagos no está listo. Recarga la página e intenta de nuevo.');
+                clearInterval(checkEpayco);
+                addLog('❌ Error: ePayco no se cargó en 10 segundos');
+            }
+        }, 10000);
+        
+        // Detectar dominio actual
+        document.getElementById('currentDomain').textContent = window.location.hostname;
+
+        // Función para probar pago
+        function testPayment(amount, numNumbers) {
+            const loading = document.getElementById('loading');
+            const statusLog = document.getElementById('statusLog');
+            
+            // Verificar que ePayco esté cargado
+            if (!epaycoReady || typeof ePayco === 'undefined') {
+                addLog('❌ Error: ePayco aún no está cargado. Espera unos segundos e intenta de nuevo.');
                 return;
             }
-
-            btnPay.disabled = true;
+            
+            if (!ePayco.checkout || typeof ePayco.checkout.configure !== 'function') {
+                addLog('❌ Error: ePayco.checkout no está disponible');
+                addLog('Tipo de ePayco: ' + typeof ePayco);
+                addLog('ePayco.checkout: ' + typeof ePayco.checkout);
+                return;
+            }
+            
+            // Mostrar loading
             loading.classList.add('active');
-            checklistSection.style.display = 'block';
-
-            addLog('🚀 Iniciando test de compra real...', 'success');
-            addLog('💰 Monto: $5,000 COP', 'info');
-            addLog('🎫 Producto: 1 número de rifa', 'info');
-
+            
+            // Log inicio
+            addLog('🚀 Iniciando test de pago...');
+            addLog(`💰 Monto: ${amount.toLocaleString('es-CO')} COP`);
+            addLog(`🎫 Números: ${numNumbers}`);
+            
             try {
                 // Configurar ePayco
-                addLog('⚙️ Configurando ePayco en modo PRODUCCIÓN...', 'info');
+                addLog('⚙️ Configurando ePayco...');
                 ePayco.checkout.configure({
                     key: '70b19a05a3f3374085061d1bfd386a8b',
                     test: false
                 });
-                addLog('✅ ePayco configurado correctamente', 'success');
+                addLog('✅ ePayco configurado');
 
                 // Generar invoice único
-                testInvoiceId = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-                addLog(`📝 Invoice generado: ${testInvoiceId}`, 'info');
+                const invoice = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+                addLog(`📝 Invoice generado: ${invoice}`);
 
-                // URLs
+                // Obtener URL base actual
                 const baseUrl = window.location.origin;
-                const responseUrl = `${baseUrl}/response`;
-                const confirmationUrl = `${baseUrl}/confirmation`;
+                addLog(`🌐 URL Base: ${baseUrl}`);
 
-                addLog(`🔗 Response URL: ${responseUrl}`, 'info');
-                addLog(`🔗 Confirmation URL: ${confirmationUrl}`, 'info');
-
-                // Configuración del checkout
+                // Configurar checkout
                 const checkoutConfig = {
-                    name: "Rifa 5 Millones - TEST REAL",
-                    description: "Compra de 1 número de rifa (Test de validación)",
-                    invoice: testInvoiceId,
+                    name: "Rifa 5 Millones - TEST",
+                    description: `Compra de ${numNumbers} números de rifa`,
+                    invoice: invoice,
                     currency: "COP",
-                    amount: "5000",
+                    amount: amount.toString(),
                     tax_base: "0",
                     tax: "0",
                     country: "co",
                     lang: "es",
                     external: "false",
-                    response: responseUrl,
-                    confirmation: confirmationUrl,
+                    response: `${baseUrl}/response`,
+                    confirmation: `${baseUrl}/confirmation`,
                     methodsDisable: [],
                     email_billing: "",
                     name_billing: "",
@@ -548,133 +289,92 @@
                     number_doc_billing: ""
                 };
 
-                addLog('📋 Abriendo checkout de ePayco...', 'info');
-                updateChecklistItem('check-payment', 'checking', '⏳ Esperando pago...');
+                addLog('📋 Configuración del checkout:');
+                addLog(`<pre>${JSON.stringify(checkoutConfig, null, 2)}</pre>`);
 
                 // Abrir checkout
-                ePayco.checkout.open(checkoutConfig);
-                
+                addLog('🎨 Abriendo checkout de ePayco...');
                 setTimeout(() => {
                     loading.classList.remove('active');
-                    btnPay.disabled = false;
                 }, 2000);
 
-                addLog('✅ Checkout abierto. Complete el pago para continuar.', 'success');
-                addLog('⏳ Esperando respuesta de ePayco...', 'warning');
-
-                // Iniciar polling para verificar el pago
-                startPaymentPolling(testInvoiceId);
+                ePayco.checkout.open(checkoutConfig);
+                
+                addLog('✅ Checkout abierto correctamente');
 
             } catch (error) {
                 loading.classList.remove('active');
-                btnPay.disabled = false;
-                addLog(`❌ ERROR: ${error.message}`, 'error');
+                addLog(`❌ ERROR: ${error.message}`);
                 console.error('Error completo:', error);
             }
         }
 
-        // Polling para verificar el pago
-        function startPaymentPolling(invoiceId) {
-            let attempts = 0;
-            const maxAttempts = 60; // 5 minutos
+        // Función para verificar configuración
+        function checkConfiguration() {
+            addLog('🔍 Verificando configuración...');
+            addLog(`📍 Protocolo: ${window.location.protocol}`);
+            addLog(`🌐 Hostname: ${window.location.hostname}`);
+            addLog(`🔌 Puerto: ${window.location.port || 'default'}`);
+            addLog(`📂 Path: ${window.location.pathname}`);
             
-            const pollInterval = setInterval(() => {
-                attempts++;
-                
-                // Verificar si el pago fue procesado
-                fetch(`/api/check_payment?invoice_id=${invoiceId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.found) {
-                            clearInterval(pollInterval);
-                            handlePaymentSuccess(data);
-                        } else if (attempts >= maxAttempts) {
-                            clearInterval(pollInterval);
-                            addLog('⏰ Tiempo de espera agotado. Verifica manualmente en el dashboard.', 'warning');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error checking payment:', error);
-                    });
-            }, 5000); // Cada 5 segundos
-        }
-
-        // Manejar pago exitoso
-        function handlePaymentSuccess(data) {
-            addLog('🎉 ¡Pago detectado exitosamente!', 'success');
-            updateChecklistItem('check-payment', 'success', '✅ Pago procesado por ePayco');
-            
-            if (data.saved) {
-                addLog('💾 Compra guardada en base de datos', 'success');
-                updateChecklistItem('check-database', 'success', '✅ Guardado en base de datos');
-            }
-            
-            if (data.numbers && data.numbers.length > 0) {
-                addLog(`🎫 Número asignado: ${data.numbers.join(', ')}`, 'success');
-                updateChecklistItem('check-numbers', 'success', `✅ Número asignado: ${data.numbers[0]}`);
-            }
-            
-            if (data.email_sent) {
-                addLog('📧 Email de confirmación enviado', 'success');
-                updateChecklistItem('check-email', 'success', '✅ Email enviado');
+            // Verificar si ePayco está cargado
+            if (typeof ePayco !== 'undefined') {
+                addLog('✅ ePayco SDK cargado correctamente');
+                if (ePayco.checkout && typeof ePayco.checkout.configure === 'function') {
+                    addLog('✅ ePayco.checkout disponible');
+                } else {
+                    addLog('⚠️ ePayco cargado pero checkout no disponible');
+                }
             } else {
-                addLog('⚠️ Email de confirmación no enviado', 'warning');
-                updateChecklistItem('check-email', 'error', '⚠️ Email no enviado');
+                addLog('❌ ePayco SDK NO está cargado');
             }
-            
-            addLog('✅ TEST COMPLETADO EXITOSAMENTE', 'success');
-            addLog(`📊 Verifica la compra en el dashboard con invoice: ${data.invoice_id}`, 'info');
-        }
 
-        // Verificar configuración completa
-        function checkFullConfiguration() {
-            addLog('🔍 Verificando configuración completa del sistema...', 'info');
-            
-            // Protocolo
+            // Verificar HTTPS
             if (window.location.protocol === 'https:') {
-                addLog('✅ Protocolo: HTTPS', 'success');
+                addLog('✅ Conexión segura (HTTPS)');
             } else {
-                addLog('⚠️ Protocolo: HTTP (ePayco requiere HTTPS)', 'warning');
+                addLog('⚠️ Conexión NO segura (HTTP) - ePayco requiere HTTPS');
             }
-            
-            // Dominio
-            addLog(`📍 Dominio: ${window.location.hostname}`, 'info');
-            
-            // ePayco
-            if (epaycoReady) {
-                addLog('✅ ePayco SDK: Cargado y listo', 'success');
+
+            // Verificar dominio
+            if (window.location.hostname === 'laparladelosniches.com' || 
+                window.location.hostname === 'www.laparladelosniches.com') {
+                addLog('✅ Dominio personalizado detectado');
+            } else if (window.location.hostname.includes('railway.app')) {
+                addLog('⚠️ Usando dominio temporal de Railway');
             } else {
-                addLog('❌ ePayco SDK: No disponible', 'error');
+                addLog('⚠️ Dominio desconocido');
             }
-            
-            // URLs
-            addLog(`🔗 Response URL: ${window.location.origin}/response`, 'info');
-            addLog(`🔗 Confirmation URL: ${window.location.origin}/confirmation`, 'info');
-            
-            addLog('✅ Verificación completada', 'success');
         }
 
-        // Actualizar checklist
-        function updateChecklistItem(id, status, text) {
-            const item = document.getElementById(id);
-            if (!item) return;
-            
-            item.className = `checklist-item ${status}`;
-            item.innerHTML = text;
-        }
-
-        // Agregar log
-        function addLog(message, type = 'info') {
+        // Función auxiliar para agregar logs
+        function addLog(message) {
             const statusLog = document.getElementById('statusLog');
             const timestamp = new Date().toLocaleTimeString('es-CO');
             
+            if (statusLog.querySelector('p')?.textContent === 'Esperando prueba...') {
+                statusLog.innerHTML = '';
+            }
+            
             const logEntry = document.createElement('p');
-            logEntry.className = type;
-            logEntry.textContent = `[${timestamp}] ${message}`;
+            logEntry.style.margin = '5px 0';
+            logEntry.style.fontSize = '14px';
+            
+            if (message.includes('<pre>')) {
+                logEntry.innerHTML = `[${timestamp}] ${message}`;
+            } else {
+                logEntry.textContent = `[${timestamp}] ${message}`;
+            }
             
             statusLog.appendChild(logEntry);
             statusLog.scrollTop = statusLog.scrollHeight;
         }
+
+        // Ejecutar verificación al cargar
+        window.addEventListener('load', () => {
+            addLog('🎯 Página de test cargada');
+            checkConfiguration();
+        });
     </script>
 </body>
 </html>

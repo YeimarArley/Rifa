@@ -816,60 +816,6 @@ def api_blessed_numbers_status():
 def test_epayco():
     return render_template('test_epayco.html')
 
-# ==================== Prueba compra real ====================
-
-@app.route('/api/check_payment')
-def api_check_payment():
-    """Verifica si un pago fue procesado (para polling del test)"""
-    try:
-        invoice_id = request.args.get('invoice_id', '')
-        
-        if not invoice_id:
-            return jsonify({'error': 'invoice_id requerido'}), 400
-        
-        # Buscar la compra en la base de datos
-        purchase = app_db.run_query(
-            "SELECT * FROM purchases WHERE invoice_id = %s",
-            params=(invoice_id,),
-            fetchone=True
-        )
-        
-        if not purchase:
-            return jsonify({
-                'found': False,
-                'message': 'Compra no encontrada'
-            })
-        
-        # Extraer información
-        purchase_id = purchase[0]
-        amount = purchase[2]
-        email = purchase[3]
-        numbers_str = purchase[4]
-        status = purchase[5]
-        
-        # Parsear números
-        numbers = [int(n.strip()) for n in numbers_str.split(',')] if numbers_str else []
-        
-        return jsonify({
-            'found': True,
-            'saved': True,
-            'invoice_id': invoice_id,
-            'purchase_id': purchase_id,
-            'amount': float(amount),
-            'email': email,
-            'numbers': numbers,
-            'status': status,
-            'email_sent': True,  # Asumimos que se envió si llegó hasta aquí
-            'message': 'Pago encontrado y procesado exitosamente'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error en api_check_payment: {e}")
-        return jsonify({
-            'found': False,
-            'error': str(e)
-        }), 500
-
 # ==================== RUTAS PROTEGIDAS ====================
 
 @app.route('/database')
