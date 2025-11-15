@@ -107,7 +107,88 @@ RESPONSE_URL = os.getenv('RESPONSE_URL', f'{BASE_URL}/response')
 CONFIRMATION_URL = os.getenv('CONFIRMATION_URL', f'{BASE_URL}/confirmation')
 
 # ==================== ALMACENAMIENTO DE TOKENS ====================
-password_reset_tokens = {}
+def save_reset_token_to_db(token, admin_user_id, email, ip_address):
+    """Guarda el token en la base de datos con expiración de 30 minutos"""
+    try:
+        expires_at = datetime.now() + timedelta(minutes=30)
+        
+        app_db.run_query("""
+            INSERT INTO password_reset_tokens 
+            (token, admin_user_id, email, expires_at, ip_address)
+            VALUES (%s, %s, %s, %s, %s)
+        """, params=(token, admin_user_id, email, expires_at, ip_address), commit=True)
+        
+        logger.info(f"🔐 Token guardado en BD para {email} - Expira: {expires_at}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error guardando token: {e}")
+        return False
+
+
+def get_reset_token_from_db(token):
+    """Obtiene y valida un token de la base de datos"""
+    try:
+        result = app_db.run_query("""
+            SELECT id, admin_user_id, email, expires_at, used
+            FROM password_reset_tokens
+            WHERE token = %s
+        """, params=(token,), fetchone=True)
+        
+        if not result:
+            logger.warning(f"⚠️ Token no encontrado: {token[:20]}...")
+            return None
+        
+        token_id, admin_user_id, email, expires_at, used = result
+        
+        # Convertir expires_at a datetime si es string
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        
+        return {
+            'id': token_id,
+            'admin_user_id': admin_user_id,
+            'email': email,
+            'expires_at': expires_at,
+            'used': used
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo token: {e}")
+        return None
+
+
+def mark_token_as_used(token):
+    """Marca el token como usado"""
+    try:
+        app_db.run_query("""
+            UPDATE password_reset_tokens
+            SET used = TRUE, used_at = CURRENT_TIMESTAMP
+            WHERE token = %s
+        """, params=(token,), commit=True)
+        
+        logger.info(f"✅ Token marcado como usado")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error marcando token: {e}")
+        return False
+
+
+def cleanup_expired_tokens():
+    """Limpia tokens expirados de la base de datos"""
+    try:
+        result = app_db.run_query("""
+            DELETE FROM password_reset_tokens
+            WHERE expires_at < CURRENT_TIMESTAMP
+        """, commit=True)
+        
+        logger.info(f"🗑️ Tokens expirados eliminados")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error limpiando tokens: {e}")
+        return False
 
 # ==================== FUNCIONES DE AUTENTICACIÓN ====================
 
@@ -496,18 +577,14 @@ def forgot_password():
             if user:
                 user_id = user[0]
                 token = generate_reset_token()
-                expires_at = datetime.now() + timedelta(minutes=30)
+                ip_address = request.remote_addr
                 
-                password_reset_tokens[token] = {
-                    'user_id': user_id,
-                    'email': email,
-                    'created_at': datetime.now(),
-                    'expires_at': expires_at,
-                    'used': False
-                }
+                # ✅ GUARDAR EN BASE DE DATOS (en lugar de memoria)
+                save_reset_token_to_db(token, user_id, email, ip_address)
                 
+                # Enviar email
                 send_password_reset_email(email, token, user_id)
-                logger.info(f"🔐 Token generado para {email} - IP: {request.remote_addr}")
+                logger.info(f"🔐 Token generado para {email} - IP: {ip_address}")
             else:
                 logger.warning(f"⚠️ Email no registrado: {email}")
             
@@ -522,23 +599,26 @@ def forgot_password():
 
 @app.route('/admin/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
+    # ✅ LIMPIAR TOKENS EXPIRADOS
     cleanup_expired_tokens()
     
-    if token not in password_reset_tokens:
+    # ✅ OBTENER TOKEN DE BASE DE DATOS
+    token_data = get_reset_token_from_db(token)
+    
+    if not token_data:
         logger.warning(f"⚠️ Token inválido desde IP: {request.remote_addr}")
         return render_template('reset_password.html', 
                              error="Token inválido o expirado. Solicita un nuevo enlace de recuperación.",
                              token_invalid=True)
     
-    token_data = password_reset_tokens[token]
-    
+    # Validar expiración
     if datetime.now() > token_data['expires_at']:
-        del password_reset_tokens[token]
         logger.warning(f"⏰ Token expirado usado desde IP: {request.remote_addr}")
         return render_template('reset_password.html', 
-                             error="Este enlace ha expirado. Solicita un nuevo enlace de recuperación.",
+                             error="Este enlace ha expirado (30 minutos). Solicita un nuevo enlace de recuperación.",
                              token_invalid=True)
     
+    # Validar si ya fue usado
     if token_data['used']:
         logger.warning(f"⚠️ Intento de reutilizar token desde IP: {request.remote_addr}")
         return render_template('reset_password.html', 
@@ -569,12 +649,15 @@ def reset_password(token):
         new_password_hash = hash_password(new_password)
         
         try:
+            # Actualizar contraseña
             app_db.run_query(
                 "UPDATE admin_users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
-                params=(new_password_hash, token_data['user_id']), commit=True
+                params=(new_password_hash, token_data['admin_user_id']), commit=True
             )
             
-            password_reset_tokens[token]['used'] = True
+            # ✅ MARCAR TOKEN COMO USADO
+            mark_token_as_used(token)
+            
             logger.info(f"✅ Contraseña actualizada para {token_data['email']} - IP: {request.remote_addr}")
             session.clear()
             
@@ -586,7 +669,12 @@ def reset_password(token):
                                  error="Error al actualizar la contraseña. Intenta nuevamente.",
                                  token=token)
     
-    return render_template('reset_password.html', token=token)
+    # Mostrar tiempo restante
+    time_remaining = (token_data['expires_at'] - datetime.now()).total_seconds() / 60
+    logger.info(f"⏰ Token válido - Tiempo restante: {time_remaining:.1f} minutos")
+    
+    return render_template('reset_password.html', token=token, time_remaining=int(time_remaining))
+
 
 # ==================== RUTAS DE NÚMEROS BENDITOS ====================
 

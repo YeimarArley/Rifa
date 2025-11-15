@@ -19,6 +19,7 @@ build/
 *.db
 *.sqlite
 *.sqlite3
+migration_create_password_reset_tokens.py
 
 # IDEs
 .vscode/
