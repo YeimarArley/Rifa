@@ -13,6 +13,7 @@ build/
 
 # Archivos sensibles
 .env
+*.env
 .env.local
 .env.production
 *.db
