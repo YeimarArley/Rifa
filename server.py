@@ -8,16 +8,13 @@ import json
 from datetime import datetime, timedelta
 import psycopg
 from psycopg.rows import dict_row
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from flask import Flask, request, jsonify, render_template, redirect, url_for, send_from_directory, abort, session
 from dotenv import load_dotenv
 from functools import wraps
-from flask_mail import Mail, Message
 import secrets
 from flask_talisman import Talisman
-import threading  # Para emails asíncronos
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 
 # ==================== CONFIGURACIÓN INICIAL ====================
 load_dotenv()
@@ -61,7 +58,7 @@ def block_sensitive_files():
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 
 app.config.update(
-    SESSION_COOKIE_SECURE=IS_PRODUCTION,  # Solo HTTPS en producción
+    SESSION_COOKIE_SECURE=IS_PRODUCTION,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=timedelta(hours=2)
@@ -89,25 +86,20 @@ except Exception as e:
 EPAYCO_PUBLIC_KEY = os.getenv('EPAYCO_PUBLIC_KEY', '70b19a05a3f3374085061d1bfd386a8b')
 EPAYCO_PRIVATE_KEY = os.getenv('EPAYCO_PRIVATE_KEY', 'your_private_key_here')
 
-# ==================== CONFIGURACIÓN DE EMAIL (CON TIMEOUT) ====================
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
-app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true'
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
-app.config['MAIL_TIMEOUT'] = 30  # ✅ AUMENTADO A 30 SEGUNDOS
-app.config['MAIL_MAX_EMAILS'] = None
-app.config['MAIL_ASCII_ATTACHMENTS'] = False
+# ==================== CONFIGURACIÓN DE BREVO ====================
+BREVO_API_KEY = os.getenv('BREVO_API_KEY')
+BREVO_SENDER_EMAIL = os.getenv('BREVO_SENDER_EMAIL', 'hola@laparladelosniches.com')
+BREVO_SENDER_NAME = os.getenv('BREVO_SENDER_NAME', 'Rifa 5 Millones')
 
-# Validar configuración de email
-if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-    logger.error("❌ CRÍTICO: Credenciales de email no configuradas")
+if not BREVO_API_KEY:
+    logger.error("❌ CRÍTICO: BREVO_API_KEY no configurado")
 else:
-    logger.info(f"✅ Email configurado: {app.config['MAIL_USERNAME']}")
+    logger.info(f"✅ Brevo configurado: {BREVO_SENDER_EMAIL}")
 
-mail = Mail(app)
+# Configurar cliente de Brevo
+configuration = sib_api_v3_sdk.Configuration()
+configuration.api_key['api-key'] = BREVO_API_KEY
+brevo_api = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
 
 # ==================== URLs ====================
 BASE_URL = os.getenv('BASE_URL', 'http://localhost:8080' if not IS_PRODUCTION else 'https://laparladelosniches.com')
@@ -159,68 +151,54 @@ def admin_api_key_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ==================== FUNCIONES DE RECUPERACIÓN DE CONTRASEÑA ====================
+# ==================== FUNCIONES DE EMAIL CON BREVO ====================
 
 def generate_reset_token():
     return secrets.token_urlsafe(32)
 
-def send_email_sync(msg, max_retries=3):
+def send_email_brevo(to_email, to_name, subject, html_content, text_content=None):
     """
-    Envía email de forma SINCRÓNICA con reintentos.
-    NO usa threading para evitar problemas con Gunicorn.
+    Envía email usando Brevo API de forma síncrona
     """
-    for attempt in range(max_retries):
-        try:
-            logger.info(f"📧 Intento {attempt + 1}/{max_retries} - Enviando email a {msg.recipients}")
-            
-            # Envío directo usando el objeto mail de Flask-Mail
-            mail.send(msg)
-            
-            logger.info(f"✅ Email enviado exitosamente a {msg.recipients}")
-            return True
-            
-        except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"❌ Error de autenticación SMTP (intento {attempt + 1}): {e}")
-            if attempt == max_retries - 1:
-                logger.error("❌ CRÍTICO: Verifica MAIL_USERNAME y MAIL_PASSWORD")
-                return False
-            
-        except smtplib.SMTPException as e:
-            logger.error(f"❌ Error SMTP (intento {attempt + 1}): {e}")
-            if attempt < max_retries - 1:
-                logger.info(f"⏳ Reintentando en 2 segundos...")
-                import time
-                time.sleep(2)
-            else:
-                return False
-                
-        except Exception as e:
-            logger.error(f"❌ Error inesperado enviando email (intento {attempt + 1}): {e}")
-            import traceback
-            traceback.print_exc()
-            if attempt == max_retries - 1:
-                return False
-    
-    return False
+    try:
+        logger.info(f"📧 Enviando email a {to_email} vía Brevo...")
+        
+        if not BREVO_API_KEY:
+            logger.error("❌ BREVO_API_KEY no configurado")
+            return False
+        
+        # Crear mensaje
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+            to=[{"email": to_email, "name": to_name}],
+            sender={"email": BREVO_SENDER_EMAIL, "name": BREVO_SENDER_NAME},
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content or "Este es un email de Rifa 5 Millones"
+        )
+        
+        # Enviar
+        api_response = brevo_api.send_transac_email(send_smtp_email)
+        
+        logger.info(f"✅ Email enviado exitosamente a {to_email} - Message ID: {api_response.message_id}")
+        return True
+        
+    except ApiException as e:
+        logger.error(f"❌ Error Brevo API: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error inesperado enviando email: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def send_password_reset_email(email, token, admin_id):
-    """Envía email de recuperación SINCRÓNICO (sin threading)"""
+    """Envía email de recuperación usando Brevo"""
     try:
         logger.info(f"📧 Preparando email de recuperación para {email}...")
         
-        if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-            logger.error("❌ Credenciales de email no configuradas")
-            return False
-        
         reset_link = f"{BASE_URL}/admin/reset_password/{token}"
         
-        msg = Message(
-            subject='🔐 Recuperación de Contraseña - Rifa 5 Millones',
-            recipients=[email],
-            sender=app.config['MAIL_DEFAULT_SENDER']
-        )
-        
-        msg.html = f"""
+        html_content = f"""
         <!DOCTYPE html>
         <html lang="es">
         <head>
@@ -268,7 +246,7 @@ def send_password_reset_email(email, token, admin_id):
         </html>
         """
         
-        msg.body = f"""
+        text_content = f"""
         Recuperación de Contraseña - Rifa 5 Millones
         
         Hola,
@@ -281,8 +259,13 @@ def send_password_reset_email(email, token, admin_id):
         Rifa 5 Millones - Panel Administrativo
         """
         
-        # ✅ ENVÍO SINCRÓNICO (sin threading)
-        success = send_email_sync(msg)
+        success = send_email_brevo(
+            to_email=email,
+            to_name="Administrador",
+            subject="🔐 Recuperación de Contraseña - Rifa 5 Millones",
+            html_content=html_content,
+            text_content=text_content
+        )
         
         if success:
             logger.info(f"✅ Email de recuperación enviado a {email}")
@@ -293,6 +276,134 @@ def send_password_reset_email(email, token, admin_id):
         
     except Exception as e:
         logger.error(f"❌ Error preparando email para {email}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def send_purchase_confirmation_email(customer_email, customer_name, numbers, amount, invoice_id):
+    """Envía email de confirmación usando Brevo"""
+    try:
+        logger.info(f"📧 Preparando email de confirmación para {customer_email}...")
+        
+        numbers_formatted = ', '.join([str(num) for num in numbers])
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); overflow: hidden; }}
+                .header {{ background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 30px; text-align: center; }}
+                .header h1 {{ margin: 0; font-size: 28px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }}
+                .content {{ padding: 30px; }}
+                .numbers-box {{ background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%); border-left: 4px solid #4CAF50; padding: 20px; margin: 20px 0; border-radius: 5px; }}
+                .numbers {{ font-size: 24px; font-weight: bold; color: #4CAF50; text-align: center; margin: 10px 0; word-wrap: break-word; }}
+                .info-row {{ margin: 15px 0; padding: 10px; border-bottom: 1px solid #e0e0e0; }}
+                .info-label {{ font-weight: bold; color: #333; }}
+                .info-value {{ color: #666; }}
+                .footer {{ background-color: #f8f8f8; padding: 20px; text-align: center; font-size: 12px; color: #777; }}
+                .button {{ display: inline-block; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }}
+                .emoji {{ font-size: 40px; margin: 10px 0; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="emoji">🎉</div>
+                    <h1>¡Compra Confirmada!</h1>
+                    <p>Rifa 5 Millones</p>
+                </div>
+                
+                <div class="content">
+                    <p>Hola <strong>{customer_name or 'Cliente'}</strong>,</p>
+                    
+                    <p>¡Gracias por participar en nuestra rifa! Tu compra ha sido confirmada exitosamente.</p>
+                    
+                    <div class="numbers-box">
+                        <h3 style="margin-top: 0; color: #333;">🎫 Tus Números de la Suerte:</h3>
+                        <div class="numbers">{numbers_formatted}</div>
+                    </div>
+                    
+                    <div class="info-row">
+                        <span class="info-label">📋 Referencia:</span>
+                        <span class="info-value">{invoice_id}</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <span class="info-label">💰 Monto:</span>
+                        <span class="info-value">${amount:,.0f} COP</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <span class="info-label">📧 Email:</span>
+                        <span class="info-value">{customer_email}</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <span class="info-label">🎯 Cantidad de números:</span>
+                        <span class="info-value">{len(numbers)} números</span>
+                    </div>
+                    
+                    <p style="margin-top: 30px; color: #666;">
+                        Guarda este email como comprobante de tu participación. 
+                        ¡Mucha suerte! 🍀
+                    </p>
+                    
+                    <center>
+                        <a href="{BASE_URL}" class="button">Ver Sitio Web</a>
+                    </center>
+                </div>
+                
+                <div class="footer">
+                    <p><strong>Rifa 5 Millones</strong></p>
+                    <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+                    <p>© 2025 Rifa 5 Millones. Todos los derechos reservados.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        ¡Compra Confirmada!
+        
+        Hola {customer_name or 'Cliente'},
+        
+        Gracias por participar en nuestra Rifa 5 Millones.
+        
+        Tus números de la suerte son: {numbers_formatted}
+        
+        Detalles de la compra:
+        - Referencia: {invoice_id}
+        - Monto: ${amount:,.0f} COP
+        - Email: {customer_email}
+        - Cantidad de números: {len(numbers)}
+        
+        Guarda este email como comprobante.
+        ¡Mucha suerte!
+        
+        Rifa 5 Millones
+        """
+        
+        success = send_email_brevo(
+            to_email=customer_email,
+            to_name=customer_name or "Cliente",
+            subject="✅ ¡Confirmación de Compra - Rifa 5 Millones! 🎉",
+            html_content=html_content,
+            text_content=text_content
+        )
+        
+        if success:
+            logger.info(f"✅ Email de confirmación enviado a {customer_email}")
+        else:
+            logger.error(f"❌ Falló el envío de email de confirmación a {customer_email}")
+        
+        return success
+        
+    except Exception as e:
+        logger.error(f"❌ Error preparando email para {customer_email}: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
@@ -400,7 +511,6 @@ def forgot_password():
             else:
                 logger.warning(f"⚠️ Email no registrado: {email}")
             
-            # Siempre mostrar mensaje genérico (seguridad)
             return render_template('forgot_password.html', 
                                  success="Si el email está registrado, recibirás instrucciones para restablecer tu contraseña.")
             
@@ -468,7 +578,6 @@ def reset_password(token):
             logger.info(f"✅ Contraseña actualizada para {token_data['email']} - IP: {request.remote_addr}")
             session.clear()
             
-            # Mostrar página de éxito (NO marcar como token_invalid)
             return render_template('reset_password.html', success=True, token_invalid=False)
             
         except Exception as e:
@@ -606,7 +715,6 @@ def database():
         traceback.print_exc()
         return f"<h1>Error en Base de Datos</h1><pre>{str(e)}</pre>", 500
 
-# 🔥 RUTA GET AGREGADA
 @app.route('/admin/simulate_purchase', methods=['GET'])
 @login_required
 def simulate_purchase_page():
@@ -658,140 +766,6 @@ def simulate_purchase():
         return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
 
 # ==================== FUNCIONES AUXILIARES ====================
-
-def send_purchase_confirmation_email(customer_email, customer_name, numbers, amount, invoice_id):
-    """Envía email de confirmación SINCRÓNICO (sin threading)"""
-    try:
-        logger.info(f"📧 Preparando email de confirmación para {customer_email}...")
-        
-        if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-            logger.error("❌ Credenciales de email no configuradas")
-            return False
-        
-        msg = Message(
-            subject='✅ ¡Confirmación de Compra - Rifa 5 Millones! 🎉',
-            recipients=[customer_email],
-            sender=app.config['MAIL_DEFAULT_SENDER']
-        )
-        
-        numbers_formatted = ', '.join([str(num) for num in numbers])
-        
-        msg.html = f"""
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body {{ font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }}
-                .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); overflow: hidden; }}
-                .header {{ background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 30px; text-align: center; }}
-                .header h1 {{ margin: 0; font-size: 28px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }}
-                .content {{ padding: 30px; }}
-                .numbers-box {{ background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%); border-left: 4px solid #4CAF50; padding: 20px; margin: 20px 0; border-radius: 5px; }}
-                .numbers {{ font-size: 24px; font-weight: bold; color: #4CAF50; text-align: center; margin: 10px 0; word-wrap: break-word; }}
-                .info-row {{ margin: 15px 0; padding: 10px; border-bottom: 1px solid #e0e0e0; }}
-                .info-label {{ font-weight: bold; color: #333; }}
-                .info-value {{ color: #666; }}
-                .footer {{ background-color: #f8f8f8; padding: 20px; text-align: center; font-size: 12px; color: #777; }}
-                .button {{ display: inline-block; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }}
-                .emoji {{ font-size: 40px; margin: 10px 0; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <div class="emoji">🎉</div>
-                    <h1>¡Compra Confirmada!</h1>
-                    <p>Rifa 5 Millones</p>
-                </div>
-                
-                <div class="content">
-                    <p>Hola <strong>{customer_name or 'Cliente'}</strong>,</p>
-                    
-                    <p>¡Gracias por participar en nuestra rifa! Tu compra ha sido confirmada exitosamente.</p>
-                    
-                    <div class="numbers-box">
-                        <h3 style="margin-top: 0; color: #333;">🎫 Tus Números de la Suerte:</h3>
-                        <div class="numbers">{numbers_formatted}</div>
-                    </div>
-                    
-                    <div class="info-row">
-                        <span class="info-label">📋 Referencia:</span>
-                        <span class="info-value">{invoice_id}</span>
-                    </div>
-                    
-                    <div class="info-row">
-                        <span class="info-label">💰 Monto:</span>
-                        <span class="info-value">${amount:,.0f} COP</span>
-                    </div>
-                    
-                    <div class="info-row">
-                        <span class="info-label">📧 Email:</span>
-                        <span class="info-value">{customer_email}</span>
-                    </div>
-                    
-                    <div class="info-row">
-                        <span class="info-label">🎯 Cantidad de números:</span>
-                        <span class="info-value">{len(numbers)} números</span>
-                    </div>
-                    
-                    <p style="margin-top: 30px; color: #666;">
-                        Guarda este email como comprobante de tu participación. 
-                        ¡Mucha suerte! 🍀
-                    </p>
-                    
-                    <center>
-                        <a href="{BASE_URL}" class="button">Ver Sitio Web</a>
-                    </center>
-                </div>
-                
-                <div class="footer">
-                    <p><strong>Rifa 5 Millones</strong></p>
-                    <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
-                    <p>© 2025 Rifa 5 Millones. Todos los derechos reservados.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        msg.body = f"""
-        ¡Compra Confirmada!
-        
-        Hola {customer_name or 'Cliente'},
-        
-        Gracias por participar en nuestra Rifa 5 Millones.
-        
-        Tus números de la suerte son: {numbers_formatted}
-        
-        Detalles de la compra:
-        - Referencia: {invoice_id}
-        - Monto: ${amount:,.0f} COP
-        - Email: {customer_email}
-        - Cantidad de números: {len(numbers)}
-        
-        Guarda este email como comprobante.
-        ¡Mucha suerte!
-        
-        Rifa 5 Millones
-        """
-        
-        # ✅ ENVÍO SINCRÓNICO (sin threading)
-        success = send_email_sync(msg)
-        
-        if success:
-            logger.info(f"✅ Email de confirmación enviado a {customer_email}")
-        else:
-            logger.error(f"❌ Falló el envío de email de confirmación a {customer_email}")
-        
-        return success
-        
-    except Exception as e:
-        logger.error(f"❌ Error preparando email para {customer_email}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False
-
 
 def get_blessed_numbers_config():
     """Obtiene la configuración de números benditos"""
@@ -1192,11 +1166,9 @@ def confirmation():
 def get_package_info(amount):
     """Obtiene información del paquete según el monto"""
     packages = {
-        # Prueba
         5000: {"name": "Test Mini", "numbers": 1, "type": "test"},
         10000: {"name": "Test Normal", "numbers": 2, "type": "test"},
         15000: {"name": "Test Plus", "numbers": 4, "type": "test"},
-        # Producción
         25000: {"name": "4 Números", "numbers": 4, "type": "production"},
         53000: {"name": "8 Números", "numbers": 8, "type": "production"},
         81000: {"name": "12 Números", "numbers": 12, "type": "production"},
