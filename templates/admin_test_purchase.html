@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Compras - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 2rem;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.85rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            display: block;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            display: block;
+        }
+
+        .result h3 {
+            margin-bottom: 1rem;
+        }
+
+        .result ul {
+            margin-left: 1.5rem;
+        }
+
+        .result li {
+            margin: 0.5rem 0;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 4px;
+        }
+
+        .info-box h4 {
+            color: #1976D2;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box p {
+            color: #555;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Simulador de Compras</h1>
+        <p class="subtitle">Panel de Administración - Rifa 5 Millones</p>
+
+        <div class="info-box">
+            <h4>ℹ️ Información</h4>
+            <p>Esta herramienta te permite simular compras para probar el sistema de emails y asignación de números.</p>
+        </div>
+
+        <form id="simulateForm">
+            <div class="form-group">
+                <label for="amount">Cantidad de Números</label>
+                <select id="amount" name="amount" required>
+                    <option value="1">1 número ($6,250)</option>
+                    <option value="2">2 números ($12,500)</option>
+                    <option value="4" selected>4 números ($25,000)</option>
+                    <option value="8">8 números ($50,000)</option>
+                    <option value="12">12 números ($75,000)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email del Cliente</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    required
+                    placeholder="cliente@ejemplo.com"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="name">Nombre del Cliente</label>
+                <input 
+                    type="text" 
+                    id="name" 
+                    name="name" 
+                    required
+                    placeholder="Juan Pérez"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="key">Clave de Administrador</label>
+                <input 
+                    type="password" 
+                    id="key" 
+                    name="key" 
+                    required
+                    placeholder="Clave de simulación"
+                >
+                <small style="color: #666; font-size: 0.85rem;">Solicita esta clave al administrador del sistema</small>
+            </div>
+
+            <button type="submit" id="submitBtn">
+                🎲 Simular Compra
+            </button>
+        </form>
+
+        <div id="result" class="result"></div>
+
+        <a href="/database" class="back-link">← Volver al Dashboard</a>
+    </div>
+
+    <script>
+        document.getElementById('simulateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const resultDiv = document.getElementById('result');
+            
+            // Deshabilitar botón
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Procesando...';
+            
+            // Ocultar resultado anterior
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            // Obtener datos del formulario
+            const formData = new FormData(e.target);
+            
+            try {
+                const response = await fetch('/admin/simulate_purchase', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'ok') {
+                    // Éxito
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Compra Simulada Exitosamente</h3>
+                        <ul>
+                            <li><strong>Referencia:</strong> ${data.invoice_id}</li>
+                            <li><strong>Números Asignados:</strong> ${data.numbers.join(', ')}</li>
+                            <li><strong>Email Enviado:</strong> ${data.email_sent ? '✅ Sí' : '❌ No'}</li>
+                        </ul>
+                        ${data.email_sent ? 
+                            '<p style="margin-top: 1rem;">📧 Revisa la bandeja de entrada del email proporcionado.</p>' : 
+                            '<p style="margin-top: 1rem; color: #856404;">⚠️ El email no se envió. Verifica la configuración SMTP.</p>'
+                        }
+                    `;
+                } else {
+                    // Error
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Error en la Simulación</h3>
+                        <p>${data.message || 'Error desconocido'}</p>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error de Conexión</h3>
+                    <p>${error.message}</p>
+                `;
+            } finally {
+                // Rehabilitar botón
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🎲 Simular Compra';
+            }
+        });
+    </script>
+</body>
+</html>
