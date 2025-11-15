@@ -52,3 +52,4 @@ docs/backups/
 tests/
 test_*.py
 *_test.py
+test_email.py
