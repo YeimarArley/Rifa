@@ -588,6 +588,75 @@ def reset_password(token):
     
     return render_template('reset_password.html', token=token)
 
+# ==================== RUTAS DE NÚMEROS BENDITOS ====================
+
+@app.route('/admin/blessed_numbers', methods=['GET', 'POST'])
+@login_required
+def admin_blessed_numbers():
+    """Administrar números benditos"""
+    try:
+        errors = []
+        success = False
+        deleted = False
+        
+        if request.method == 'POST':
+            action = request.form.get('action')
+            
+            if action == 'delete':
+                # Eliminar configuración
+                app_db.run_query("DELETE FROM blessed_numbers_config", commit=True)
+                deleted = True
+                logger.info("🗑️ Configuración de números benditos eliminada")
+            
+            elif action == 'save':
+                # Validar números
+                try:
+                    number1 = request.form.get('number1')
+                    number2 = request.form.get('number2')
+                    
+                    if not number1 or not number2:
+                        errors.append("Debes ingresar ambos números benditos")
+                    else:
+                        num1 = int(number1)
+                        num2 = int(number2)
+                        
+                        if num1 < 1 or num1 > 2000:
+                            errors.append("El número 1 debe estar entre 1 y 2000")
+                        if num2 < 1 or num2 > 2000:
+                            errors.append("El número 2 debe estar entre 1 y 2000")
+                        if num1 == num2:
+                            errors.append("Los números deben ser diferentes")
+                        
+                        if not errors:
+                            visible = request.form.get('visible') == 'on'
+                            scheduled_date = request.form.get('scheduled_date') or None
+                            numbers = [num1, num2]
+                            
+                            # Guardar configuración
+                            save_blessed_numbers_config(visible, scheduled_date, numbers)
+                            success = True
+                            logger.info(f"✅ Números benditos guardados: {numbers}")
+                
+                except ValueError:
+                    errors.append("Los números deben ser valores numéricos válidos")
+        
+        # Obtener configuración actual
+        config = get_blessed_numbers_config()
+        
+        return render_template('admin_blessed_numbers.html', 
+                             config=config,
+                             errors=errors,
+                             success=success,
+                             deleted=deleted)
+        
+    except Exception as e:
+        logger.error(f"❌ Error en blessed_numbers: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"<h1>Error</h1><pre>{str(e)}</pre>", 500
+
+
+
 # ==================== RUTAS PÚBLICAS ====================
 
 @app.route('/')
@@ -681,14 +750,16 @@ def database():
         params = []
         
         if search_query:
+            # ✅ AGREGAR BÚSQUEDA POR NÚMERO
             query += """ AND (
                 LOWER(full_name) LIKE LOWER(%s) OR 
                 LOWER(email) LIKE LOWER(%s) OR 
                 LOWER(phone) LIKE LOWER(%s) OR 
-                LOWER(document_number) LIKE LOWER(%s)
+                LOWER(document_number) LIKE LOWER(%s) OR
+                numbers LIKE %s
             )"""
             search_pattern = f"%{search_query}%"
-            params.extend([search_pattern] * 4)
+            params.extend([search_pattern] * 5)  # ✅ Ahora son 5 parámetros
         
         if date_from:
             query += " AND created_at >= %s"
@@ -764,6 +835,109 @@ def simulate_purchase():
         import traceback
         traceback.print_exc()
         return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
+    
+# ==================== RUTAS DE EDICIÓN Y ELIMINACIÓN ====================
+
+@app.route('/edit_purchase/<int:purchase_id>', methods=['GET', 'POST'])
+@login_required
+def edit_purchase(purchase_id):
+    """Editar una compra existente"""
+    try:
+        if request.method == 'POST':
+            # Obtener datos del formulario
+            invoice_id = request.form.get('invoice_id')
+            amount = float(request.form.get('amount', 0))
+            email = request.form.get('email')
+            numbers = request.form.get('numbers')
+            status = request.form.get('status')
+            full_name = request.form.get('full_name')
+            phone = request.form.get('phone')
+            document_number = request.form.get('document_number')
+            notes = request.form.get('notes', '')
+            
+            # Validar datos
+            if not invoice_id or not email or not numbers:
+                return render_template('edit_purchase.html', 
+                                     purchase=None,
+                                     error="Todos los campos obligatorios deben completarse")
+            
+            # Actualizar en base de datos
+            app_db.run_query("""
+                UPDATE purchases 
+                SET invoice_id = %s, amount = %s, email = %s, numbers = %s, 
+                    status = %s, full_name = %s, phone = %s, 
+                    document_number = %s, notes = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, params=(invoice_id, amount, email, numbers, status, 
+                        full_name, phone, document_number, notes, purchase_id), 
+            commit=True)
+            
+            # Log de auditoría
+            admin_id = session.get('admin_id')
+            app_db.log_audit(admin_id, 'UPDATE', 'purchases', purchase_id, 
+                           None, {'status': status, 'notes': notes})
+            
+            logger.info(f"✅ Compra {purchase_id} actualizada por admin {admin_id}")
+            
+            return redirect(url_for('database'))
+        
+        # GET: Mostrar formulario de edición
+        purchase = app_db.get_purchase_by_id(purchase_id)
+        
+        if not purchase:
+            abort(404)
+        
+        return render_template('edit_purchase.html', purchase=purchase)
+        
+    except Exception as e:
+        logger.error(f"❌ Error editando compra {purchase_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"<h1>Error</h1><pre>{str(e)}</pre>", 500
+
+
+@app.route('/delete_purchase/<int:purchase_id>')
+@login_required
+def delete_purchase(purchase_id):
+    """Eliminar una compra (soft delete)"""
+    try:
+        # Obtener datos de la compra
+        purchase = app_db.get_purchase_by_id(purchase_id)
+        
+        if not purchase:
+            logger.warning(f"⚠️ Intento de eliminar compra inexistente: {purchase_id}")
+            return redirect(url_for('database'))
+        
+        invoice_id = purchase[1]
+        
+        # Soft delete: marcar como eliminada
+        app_db.run_query("""
+            UPDATE purchases 
+            SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, params=(purchase_id,), commit=True)
+        
+        # Eliminar números asignados
+        app_db.run_query(
+            "DELETE FROM assigned_numbers WHERE invoice_id = %s",
+            params=(invoice_id,),
+            commit=True
+        )
+        
+        # Log de auditoría
+        admin_id = session.get('admin_id')
+        app_db.log_audit(admin_id, 'DELETE', 'purchases', purchase_id, 
+                       {'invoice_id': invoice_id}, None)
+        
+        logger.info(f"✅ Compra {purchase_id} eliminada por admin {admin_id}")
+        
+        return redirect(url_for('database'))
+        
+    except Exception as e:
+        logger.error(f"❌ Error eliminando compra {purchase_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('database'))
 
 # ==================== FUNCIONES AUXILIARES ====================
 
