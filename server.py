@@ -24,7 +24,7 @@ load_dotenv()
 # Create Flask app PRIMERO
 app = Flask(__name__)
 
-# Forzar HTTPS y headers de seguridad
+# Forzar HTTPS y headers de seguridad - CSP ACTUALIZADO PARA EPAYCO
 if os.getenv('ENVIRONMENT') == 'production':
     # CSP más permisivo para ePayco - SIN NONCE para permitir scripts inline
     csp = {
