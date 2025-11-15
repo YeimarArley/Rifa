@@ -26,18 +26,21 @@ app = Flask(__name__)
 
 # Forzar HTTPS y headers de seguridad
 if os.getenv('ENVIRONMENT') == 'production':
-    # CSP más permisivo para ePayco
+    # CSP más permisivo para ePayco - SIN NONCE para permitir scripts inline
     csp = {
         'default-src': [
             "'self'",
             'https://checkout.epayco.co',
-            'https://*.epayco.co',  # Permitir todos los subdominios
+            'https://*.epayco.co',
+            'https://*.cloudflare.com',  # Cloudflare Analytics
         ],
         'script-src': [
             "'self'",
-            "'unsafe-inline'",
+            "'unsafe-inline'",  # NECESARIO para scripts inline
             'https://checkout.epayco.co',
             'https://*.epayco.co',
+            'https://static.cloudflareinsights.com',  # Cloudflare Analytics
+            'https://cdnjs.cloudflare.com',  # Chart.js y otras CDNs
         ],
         'style-src': [
             "'self'",
@@ -48,14 +51,15 @@ if os.getenv('ENVIRONMENT') == 'production':
             'data:',
             'https:',
             'https://*.epayco.co',
+            'https://*.googleusercontent.com',  # Para imágenes del slider
         ],
-        'connect-src': [  # CRÍTICO para las peticiones fetch/xhr
+        'connect-src': [
             "'self'",
             'https://checkout.epayco.co',
             'https://*.epayco.co',
-            'https://ms-checkout-create-transaction.epayco.co',  # Explícitamente permitido
+            'https://ms-checkout-create-transaction.epayco.co',
         ],
-        'frame-src': [  # Para iframes de ePayco
+        'frame-src': [
             "'self'",
             'https://checkout.epayco.co',
             'https://*.epayco.co',
@@ -72,7 +76,7 @@ if os.getenv('ENVIRONMENT') == 'production':
         force_https=True,
         strict_transport_security=True,
         content_security_policy=csp,
-        content_security_policy_nonce_in=['script-src']
+        content_security_policy_nonce_in=[]  # NO usar nonce
     )
 
 # Proteger archivos sensibles
