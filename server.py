@@ -489,13 +489,6 @@ def send_purchase_confirmation_email(customer_email, customer_name, numbers, amo
         traceback.print_exc()
         return False
 
-def cleanup_expired_tokens():
-    now = datetime.now()
-    expired_tokens = [token for token, data in password_reset_tokens.items() if now > data['expires_at']]
-    for token in expired_tokens:
-        del password_reset_tokens[token]
-        logger.info(f"🗑️ Token expirado eliminado")
-
 # ==================== RUTAS DE AUTENTICACIÓN ====================
 
 @app.route('/admin/login', methods=['GET', 'POST'])
