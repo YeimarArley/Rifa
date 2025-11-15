@@ -26,15 +26,54 @@ app = Flask(__name__)
 
 # Forzar HTTPS y headers de seguridad
 if os.getenv('ENVIRONMENT') == 'production':
-    Talisman(app, 
-             force_https=True,
-             strict_transport_security=True,
-             content_security_policy={
-                 'default-src': ["'self'", 'https://checkout.epayco.co'],
-                 'script-src': ["'self'", "'unsafe-inline'", 'https://checkout.epayco.co'],
-                 'style-src': ["'self'", "'unsafe-inline'"],
-                 'img-src': ["'self'", 'data:', 'https:'],
-             })
+    # CSP más permisivo para ePayco
+    csp = {
+        'default-src': [
+            "'self'",
+            'https://checkout.epayco.co',
+            'https://*.epayco.co',  # Permitir todos los subdominios
+        ],
+        'script-src': [
+            "'self'",
+            "'unsafe-inline'",
+            'https://checkout.epayco.co',
+            'https://*.epayco.co',
+        ],
+        'style-src': [
+            "'self'",
+            "'unsafe-inline'",
+        ],
+        'img-src': [
+            "'self'",
+            'data:',
+            'https:',
+            'https://*.epayco.co',
+        ],
+        'connect-src': [  # CRÍTICO para las peticiones fetch/xhr
+            "'self'",
+            'https://checkout.epayco.co',
+            'https://*.epayco.co',
+            'https://ms-checkout-create-transaction.epayco.co',  # Explícitamente permitido
+        ],
+        'frame-src': [  # Para iframes de ePayco
+            "'self'",
+            'https://checkout.epayco.co',
+            'https://*.epayco.co',
+        ],
+        'font-src': [
+            "'self'",
+            'data:',
+            'https:',
+        ],
+    }
+    
+    Talisman(
+        app,
+        force_https=True,
+        strict_transport_security=True,
+        content_security_policy=csp,
+        content_security_policy_nonce_in=['script-src']
+    )
 
 # Proteger archivos sensibles
 @app.before_request
