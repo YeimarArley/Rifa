@@ -97,10 +97,15 @@ app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
-app.config['MAIL_TIMEOUT'] = 10  # 🔥 TIMEOUT de 10 segundos
+app.config['MAIL_TIMEOUT'] = 30  # ✅ AUMENTADO A 30 SEGUNDOS
+app.config['MAIL_MAX_EMAILS'] = None
+app.config['MAIL_ASCII_ATTACHMENTS'] = False
 
+# Validar configuración de email
 if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-    logger.warning("⚠️ Credenciales de email no configuradas")
+    logger.error("❌ CRÍTICO: Credenciales de email no configuradas")
+else:
+    logger.info(f"✅ Email configurado: {app.config['MAIL_USERNAME']}")
 
 mail = Mail(app)
 
@@ -159,22 +164,52 @@ def admin_api_key_required(f):
 def generate_reset_token():
     return secrets.token_urlsafe(32)
 
-def send_email_async(app_instance, msg):
-    """Envía email en thread separado para no bloquear"""
-    with app_instance.app_context():
+def send_email_sync(msg, max_retries=3):
+    """
+    Envía email de forma SINCRÓNICA con reintentos.
+    NO usa threading para evitar problemas con Gunicorn.
+    """
+    for attempt in range(max_retries):
         try:
+            logger.info(f"📧 Intento {attempt + 1}/{max_retries} - Enviando email a {msg.recipients}")
+            
+            # Envío directo usando el objeto mail de Flask-Mail
             mail.send(msg)
-            logger.info(f"✅ Email enviado exitosamente")
+            
+            logger.info(f"✅ Email enviado exitosamente a {msg.recipients}")
+            return True
+            
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"❌ Error de autenticación SMTP (intento {attempt + 1}): {e}")
+            if attempt == max_retries - 1:
+                logger.error("❌ CRÍTICO: Verifica MAIL_USERNAME y MAIL_PASSWORD")
+                return False
+            
+        except smtplib.SMTPException as e:
+            logger.error(f"❌ Error SMTP (intento {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                logger.info(f"⏳ Reintentando en 2 segundos...")
+                import time
+                time.sleep(2)
+            else:
+                return False
+                
         except Exception as e:
-            logger.error(f"❌ Error enviando email asíncrono: {e}")
+            logger.error(f"❌ Error inesperado enviando email (intento {attempt + 1}): {e}")
+            import traceback
+            traceback.print_exc()
+            if attempt == max_retries - 1:
+                return False
+    
+    return False
 
 def send_password_reset_email(email, token, admin_id):
-    """Envía email con link de recuperación (NO BLOQUEANTE)"""
+    """Envía email de recuperación SINCRÓNICO (sin threading)"""
     try:
         logger.info(f"📧 Preparando email de recuperación para {email}...")
         
         if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-            logger.warning("⚠️ Credenciales de email no configuradas")
+            logger.error("❌ Credenciales de email no configuradas")
             return False
         
         reset_link = f"{BASE_URL}/admin/reset_password/{token}"
@@ -246,13 +281,15 @@ def send_password_reset_email(email, token, admin_id):
         Rifa 5 Millones - Panel Administrativo
         """
         
-        # 🔥 ENVÍO ASÍNCRONO (no bloquea la respuesta)
-        thread = threading.Thread(target=send_email_async, args=(app, msg))
-        thread.daemon = True  # Thread se cierra con la app
-        thread.start()
+        # ✅ ENVÍO SINCRÓNICO (sin threading)
+        success = send_email_sync(msg)
         
-        logger.info(f"📤 Email de recuperación encolado para {email}")
-        return True
+        if success:
+            logger.info(f"✅ Email de recuperación enviado a {email}")
+        else:
+            logger.error(f"❌ Falló el envío de email de recuperación a {email}")
+        
+        return success
         
     except Exception as e:
         logger.error(f"❌ Error preparando email para {email}: {str(e)}")
@@ -623,12 +660,12 @@ def simulate_purchase():
 # ==================== FUNCIONES AUXILIARES ====================
 
 def send_purchase_confirmation_email(customer_email, customer_name, numbers, amount, invoice_id):
-    """Envía email de confirmación de compra (ASÍNCRONO)"""
+    """Envía email de confirmación SINCRÓNICO (sin threading)"""
     try:
-        logger.info(f"📧 Preparando email para {customer_email}...")
+        logger.info(f"📧 Preparando email de confirmación para {customer_email}...")
         
         if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-            logger.warning("⚠️ Credenciales de email no configuradas")
+            logger.error("❌ Credenciales de email no configuradas")
             return False
         
         msg = Message(
@@ -739,13 +776,18 @@ def send_purchase_confirmation_email(customer_email, customer_name, numbers, amo
         Rifa 5 Millones
         """
         
-        # Envío directo (ya está en thread separado desde simulate_purchase)
-        mail.send(msg)
-        logger.info(f"✅ Email enviado exitosamente a {customer_email}")
-        return True
+        # ✅ ENVÍO SINCRÓNICO (sin threading)
+        success = send_email_sync(msg)
+        
+        if success:
+            logger.info(f"✅ Email de confirmación enviado a {customer_email}")
+        else:
+            logger.error(f"❌ Falló el envío de email de confirmación a {customer_email}")
+        
+        return success
         
     except Exception as e:
-        logger.error(f"❌ Error enviando email a {customer_email}: {str(e)}")
+        logger.error(f"❌ Error preparando email para {customer_email}: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
