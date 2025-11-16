@@ -18,18 +18,22 @@
         
         
         .header {
-            background: linear-gradient(90deg, #000000 0%, #333333 100%);
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%);
             color: #ffffff;
             text-align: center;
-            padding: 5px 10px;
-            font-size: 1.2em;
+            padding: 25px 20px;
+            font-size: 1.5em;
             font-weight: bold;
-            font-family: 'Arial', sans-serif;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            border-bottom: 1px solid #ffffff;
+            font-family: 'Bebas Neue', sans-serif;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+            border-bottom: 2px solid #FFD700;
             width: 100%;
             animation: slideDown 1s ease-out;
-            letter-spacing: 1px;
+            letter-spacing: 3px;
+        }
+
+        .header h1 {
+            color: #ffffff;
         }
 
         @keyframes slideDown {
@@ -300,7 +304,7 @@
 
         .ticket p {
             color: #ffffff;
-            font-size: 1.8em;
+            font-size: 1.4em;
             font-weight: 800;
             text-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
             margin: 0;
@@ -592,14 +596,105 @@
             fill: #ffffff;
         }
 
-        @keyframes whatsappPulse {
+@keyframes whatsappPulse {
+    0%, 100% {
+        box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+    }
+    50% {
+        box-shadow: 0 12px 35px rgba(37, 211, 102, 0.6);
+    }
+}
+
+        /* Professional Animated Bar Styles */
+        .animated-bar {
+            position: relative;
+            text-align: center;
+            padding: 35px 30px;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%, #0a0a0a 100%);
+            background-size: 300% 100%;
+            color: #ffffff;
+            font-size: 1.2em;
+            font-weight: 800;
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 4px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(76, 175, 80, 0.3);
+            overflow: hidden;
+            animation: elegantShift 12s ease-in-out infinite;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 4px 16px rgba(76, 175, 80, 0.1);
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .animated-bar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.1), rgba(255, 255, 255, 0.05), rgba(76, 175, 80, 0.1), transparent);
+            animation: shineEffect 8s linear infinite;
+            z-index: 1;
+        }
+
+        .animated-bar::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #4CAF50, #45a049, #4CAF50, transparent);
+            background-size: 200% 100%;
+            animation: progressFlow 10s ease-in-out infinite;
+            z-index: 1;
+        }
+
+        .animated-bar span {
+            position: relative;
+            z-index: 2;
+            display: inline-block;
+            color: #ffffff;
+            text-shadow: none;
+        }
+
+        @keyframes elegantShift {
             0%, 100% {
-                box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+                background-position: 0% 50%;
+                transform: translateY(0) scale(1);
             }
             50% {
-                box-shadow: 0 12px 35px rgba(37, 211, 102, 0.6);
+                background-position: 100% 50%;
+                transform: translateY(-3px) scale(1.005);
             }
         }
+
+        @keyframes shineEffect {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes progressFlow {
+            0%, 100% {
+                background-position: 0% 50%;
+                opacity: 0.7;
+            }
+            50% {
+                background-position: 100% 50%;
+                opacity: 1;
+            }
+        }
+
+@media (max-width: 768px) {
+    .animated-bar {
+        font-size: 1.3em;
+        padding: 20px 15px;
+        letter-spacing: 1.5px;
+    }
+}
 
         @media (max-width: 768px) {
             .whatsapp-sticker {
@@ -1052,12 +1147,8 @@ footer::before {
         </div>
     </div>
 
-    <div style="text-align: center; padding: 15px; background: linear-gradient(90deg, #000000 0%, #333333 100%); color: #ffffff; font-size: 1.5em; font-weight: bold; font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-        PARTICIPA Y GANA DISPONIBLE
-    </div>
-
-    <div style="text-align: center; padding: 15px; background: linear-gradient(90deg, #000000 0%, #333333 100%); color: #ffffff; font-size: 1.5em; font-weight: bold; font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-        NÚMEROS BENDITOS
+    <div class="animated-bar">
+        <span>PARTICIPA Y GANA DISPONIBLE</span><br><span>NÚMEROS BENDITOS</span>
     </div>
 <br>
 
@@ -1142,7 +1233,7 @@ footer::before {
         <div class="modal-content show">
             <span class="close" onclick="closeModal()">&times;</span>
             <div style="position: relative; z-index: 2;">
-                <h2 style="color: #2c3e50; margin-bottom: 20px; font-size: 2.2em; font-weight: 700; text-shadow: none; letter-spacing: 1px; text-transform: uppercase; line-height: 1.2; animation: titlePulse 3s infinite;">RIFA DE<br>5 MILLONES</h2>
+                <h2 style="color: #2c3e50; margin-bottom: 20px; font-size: 2em; font-weight: 700; text-shadow: none; letter-spacing: 1px; text-transform: uppercase; line-height: 1.2; animation: titlePulse 3s infinite;">RIFA DE<br>5 MILLONES</h2>
                 <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #dee2e6; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
                     <h3 style="color: #495057; margin-bottom: 18px; font-size: 1.4em; font-weight: 600; text-align: center;">Guía Profesional para Participar</h3>
                     <div style="display: flex; flex-direction: column; gap: 15px;">
