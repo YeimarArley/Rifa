@@ -711,6 +711,121 @@
 
 
 
+        /* Popular Badge Styles - Modern Contemporary Design */
+        .popular-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 25%, #FFD23F 50%, #F7931E 75%, #FF6B35 100%);
+            background-size: 300% 300%;
+            color: #ffffff;
+            padding: 6px 10px;
+            font-size: 0.45em;
+            font-weight: 800;
+            font-family: 'Bebas Neue', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-radius: 15px;
+            box-shadow:
+                0 4px 15px rgba(255, 107, 53, 0.3),
+                0 2px 8px rgba(0,0,0,0.15),
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                inset 0 -1px 0 rgba(0,0,0,0.1);
+            border: 1px solid #ffffff;
+            z-index: 3;
+            animation: modernBadgePulse 2.5s ease-in-out infinite;
+            white-space: nowrap;
+            transform: rotate(-2deg);
+            min-width: 65px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            clip-path: polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%, 15% 50%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .popular-badge:hover {
+            transform: rotate(-2deg) scale(1.05) translateY(-1px);
+            box-shadow:
+                0 6px 20px rgba(255, 107, 53, 0.4),
+                0 3px 10px rgba(0,0,0,0.2),
+                inset 0 2px 0 rgba(255,255,255,0.3),
+                inset 0 -2px 0 rgba(0,0,0,0.15);
+        }
+
+        .popular-badge::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            border-radius: 25px;
+            animation: modernBadgeShine 3s ease-in-out infinite;
+            z-index: 1;
+        }
+
+        .popular-badge::after {
+            content: '⭐';
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            font-size: 0.6em;
+            animation: modernStarTwinkle 2s ease-in-out infinite;
+            z-index: 2;
+        }
+
+        .popular-badge span {
+            position: relative;
+            z-index: 3;
+            text-shadow:
+                0 1px 2px rgba(0,0,0,0.3),
+                0 0 8px rgba(255,255,255,0.5);
+            line-height: 1;
+        }
+
+        @keyframes modernBadgePulse {
+            0%, 100% {
+                box-shadow:
+                    0 4px 15px rgba(255, 107, 53, 0.3),
+                    0 2px 8px rgba(0,0,0,0.15),
+                    inset 0 1px 0 rgba(255,255,255,0.2),
+                    inset 0 -1px 0 rgba(0,0,0,0.1);
+                background-position: 0% 50%;
+                transform: rotate(-2deg) scale(1);
+            }
+            50% {
+                box-shadow:
+                    0 6px 20px rgba(255, 107, 53, 0.4),
+                    0 3px 10px rgba(0,0,0,0.2),
+                    inset 0 2px 0 rgba(255,255,255,0.3),
+                    inset 0 -2px 0 rgba(0,0,0,0.15);
+                background-position: 100% 50%;
+                transform: rotate(-2deg) scale(1.01);
+            }
+        }
+
+        @keyframes modernBadgeShine {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        @keyframes modernStarTwinkle {
+            0%, 100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2) rotate(180deg);
+                opacity: 0.8;
+            }
+        }
+
         /* === ESTILOS DEL FOOTER NOVA51 === */
 * {
 	margin: 0;
@@ -1199,27 +1314,29 @@ footer::before {
         <h2 style="color: #2c3e50; font-family: 'Bebas Neue', sans-serif; font-size: 2em; margin-bottom: 20px; letter-spacing: 2px;">COMPRA TUS NÚMEROS AHORA</h2>
         <p style="color: #495057; font-size: 1.1em; margin-bottom: 30px;">Paga de forma segura con PSE</p>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto;">
-            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50; position: relative;">
+                <div class="popular-badge">MÁS POPULARES</div>
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 4 NÚMEROS</h3>
                 <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$25,000 COP</p>
                 <button onclick="showPurchaseModal('25000', 'Compra de 4 números de rifa', 4);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR</button>
             </div>
-            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50; position: relative;">
+                <div class="popular-badge">MÁS POPULARES</div>
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 8 NÚMEROS</h3>
                 <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$53,000 COP</p>
                 <button onclick="showPurchaseModal('53000', 'Compra de 8 números de rifa', 8);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR</button>
             </div>
-            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 12 NÚMEROS</h3>
                 <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$81,000 COP</p>
                 <button onclick="showPurchaseModal('81000', 'Compra de 12 números de rifa', 12);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR</button>
             </div>
-            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 16 NÚMEROS</h3>
                 <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$109,000 COP</p>
                 <button onclick="showPurchaseModal('109000', 'Compra de 16 números de rifa', 16);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR</button>
             </div>
-            <div style="background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
+            <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 20 NÚMEROS</h3>
                 <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$137,000 COP</p>
                 <button onclick="showPurchaseModal('137000', 'Compra de 20 números de rifa', 20);" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #ffffff; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); transition: all 0.3s ease;">COMPRAR</button>
