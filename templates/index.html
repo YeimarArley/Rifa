@@ -1262,98 +1262,621 @@ footer::before {
         </div>
     </div>
 
-    <script>
-        // Function to close the preview modal
-        function closeModal() {
-            document.getElementById('previewModal').style.display = 'none';
-        }
 
-        // Verificar que ePayco esté cargado
-        let epaycoReady = false;
-        const checkEpayco = setInterval(() => {
-            if (typeof ePayco !== 'undefined' && ePayco.checkout) {
-                epaycoReady = true;
-                clearInterval(checkEpayco);
-                console.log('✅ ePayco listo');
-            }
-        }, 100);
+<script>    
+// ==================== CONFIGURACIÓN GLOBAL ====================
+let PAYMENT_CONFIG = {
+    activeGateway: 'mercadopago',
+    preferredGateway: 'mercadopago',
+    gateways: {}
+};
 
-        // Function to show purchase modal using ePayco checkout
-        function showPurchaseModal(amount, description, count) {
-    if (!epaycoReady) {
-        alert('⏳ Cargando pasarela de pago... Intenta de nuevo en unos segundos.');
-        return;
+let mercadopagoReady = false;
+
+// ==================== CARGAR CONFIGURACIÓN DE PASARELAS ====================
+async function loadPaymentConfig() {
+    try {
+        const response = await fetch('/api/payment_gateways');
+        const config = await response.json();
+        
+        PAYMENT_CONFIG = {
+            activeGateway: config.active_gateway || 'mercadopago',
+            preferredGateway: config.preferred_gateway || 'mercadopago',
+            gateways: {}
+        };
+        
+        config.available.forEach(gw => {
+            PAYMENT_CONFIG.gateways[gw.id] = gw;
+        });
+        
+        console.log('✅ Configuración de pago cargada:', PAYMENT_CONFIG);
+        
+    } catch (error) {
+        console.error('❌ Error cargando configuración:', error);
+        PAYMENT_CONFIG.activeGateway = 'mercadopago';
+        PAYMENT_CONFIG.preferredGateway = 'mercadopago';
     }
-
-    // ✅ URL DINÁMICA
-    const baseUrl = window.location.origin;
-    
-    console.log('🔧 Base URL:', baseUrl);
-    console.log('💳 Amount:', amount);
-
-    ePayco.checkout.configure({
-        key: '70b19a05a3f3374085061d1bfd386a8b',
-        test: false
-    });
-    
-    ePayco.checkout.open({
-        name: "Rifa 5 Millones",
-        description: description,
-        invoice: "rifa_" + Date.now(),
-        currency: "COP",
-        amount: amount,
-        tax_base: "0",
-        tax: "0",
-        country: "co",
-        lang: "es",
-        external: "false",
-        response: baseUrl + "/response",
-        confirmation: baseUrl + "/confirmation",
-        email_billing: "",
-        name_billing: "",
-        address_billing: "",
-        type_doc_billing: "",
-        mobilephone_billing: "",
-        number_doc_billing: ""
-    });
 }
 
-        // Function to update progress bar and text from /progress endpoint
-        async function updateProgress() {
-            try {
-                const response = await fetch('/progress');
-                if (!response.ok) {
-                    throw new Error('Response not OK');
-                }
-                const data = await response.json();
+// ==================== FUNCIÓN PRINCIPAL DE COMPRA ====================
+async function showPurchaseModal(amount, description, count) {
+    console.log(`🛒 Iniciando compra: $${amount} (${count} números)`);
+    
+    // Crear modal de datos del cliente
+    createCustomerModal(amount, description, count);
+}
 
-                const progressFill = document.getElementById('progressFill');
-                const percentageEl = document.getElementById('percentage');
+// ==================== MODAL PROFESIONAL PARA DATOS ====================
+function createCustomerModal(amount, description, count) {
+    // Verificar si ya existe y eliminarlo
+    const existing = document.getElementById('customer-modal');
+    if (existing) existing.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'customer-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    modal.innerHTML = `
+        <style>
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideUp {
+                from { transform: translateY(50px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .modal-form-container {
+                background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+                border-radius: 20px;
+                padding: 40px;
+                max-width: 480px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: slideUp 0.4s ease;
+                position: relative;
+            }
+            .modal-header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .modal-header h2 {
+                color: #2c3e50;
+                font-size: 1.8em;
+                margin-bottom: 10px;
+                font-weight: 700;
+            }
+            .modal-header p {
+                color: #666;
+                font-size: 0.95em;
+            }
+            .purchase-details {
+                background: linear-gradient(135deg, #009EE3 0%, #0073BB 100%);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 12px;
+                margin-bottom: 25px;
+                text-align: center;
+            }
+            .purchase-details strong {
+                font-size: 1.4em;
+                display: block;
+                margin-bottom: 5px;
+            }
+            .form-group {
+                margin-bottom: 20px;
+            }
+            .form-group label {
+                display: block;
+                color: #2c3e50;
+                font-weight: 600;
+                margin-bottom: 8px;
+                font-size: 0.95em;
+            }
+            .form-group label .required {
+                color: #e74c3c;
+                margin-left: 3px;
+            }
+            .form-group input, .form-group select {
+                width: 100%;
+                padding: 14px 16px;
+                border: 2px solid #e0e0e0;
+                border-radius: 10px;
+                font-size: 1em;
+                transition: all 0.3s ease;
+                background: white;
+            }
+            .form-group input:focus, .form-group select:focus {
+                outline: none;
+                border-color: #009EE3;
+                box-shadow: 0 0 0 3px rgba(0, 158, 227, 0.1);
+            }
+            .form-group input::placeholder {
+                color: #999;
+            }
+            .btn-group {
+                display: flex;
+                gap: 12px;
+                margin-top: 30px;
+            }
+            .btn {
+                flex: 1;
+                padding: 16px 25px;
+                border: none;
+                border-radius: 12px;
+                font-size: 1.05em;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .btn-primary {
+                background: linear-gradient(135deg, #009EE3 0%, #0073BB 100%);
+                color: white;
+                box-shadow: 0 4px 15px rgba(0, 158, 227, 0.3);
+            }
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(0, 158, 227, 0.4);
+            }
+            .btn-primary:active {
+                transform: translateY(0);
+            }
+            .btn-secondary {
+                background: #e0e0e0;
+                color: #666;
+            }
+            .btn-secondary:hover {
+                background: #d0d0d0;
+            }
+            .close-btn {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                background: #f0f0f0;
+                border: none;
+                border-radius: 50%;
+                width: 35px;
+                height: 35px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                font-size: 1.3em;
+                color: #666;
+                transition: all 0.3s ease;
+            }
+            .close-btn:hover {
+                background: #e74c3c;
+                color: white;
+                transform: scale(1.1);
+            }
+            .info-text {
+                text-align: center;
+                color: #666;
+                font-size: 0.85em;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #e0e0e0;
+            }
+            .error-message {
+                background: #fee;
+                border-left: 4px solid #e74c3c;
+                color: #c0392b;
+                padding: 12px;
+                border-radius: 8px;
+                margin-bottom: 15px;
+                font-size: 0.9em;
+                display: none;
+            }
+        </style>
+        
+        <div class="modal-form-container">
+            <button class="close-btn" onclick="document.getElementById('customer-modal').remove()">✕</button>
+            
+            <div class="modal-header">
+                <h2>💳 Datos para el Pago</h2>
+                <p>Complete la información para continuar</p>
+            </div>
+            
+            <div class="purchase-details">
+                <strong>$${parseFloat(amount).toLocaleString('es-CO')} COP</strong>
+                <span>${count} números de la suerte</span>
+            </div>
+            
+            <div class="error-message" id="form-error"></div>
+            
+            <form id="customer-form" onsubmit="return false;">
+                <div class="form-group">
+                    <label>📧 Correo Electrónico <span class="required">*</span></label>
+                    <input type="email" id="customer-email" placeholder="tu@email.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>👤 Nombre Completo <span class="required">*</span></label>
+                    <input type="text" id="customer-name" placeholder="Ej: Juan Pérez" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>📱 Teléfono <span class="required">*</span></label>
+                    <input type="tel" id="customer-phone" placeholder="3001234567" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>🆔 Tipo de Documento <span class="required">*</span></label>
+                    <select id="customer-doc-type" required>
+                        <option value="">Seleccione...</option>
+                        <option value="CC">Cédula de Ciudadanía</option>
+                        <option value="CE">Cédula de Extranjería</option>
+                        <option value="NIT">NIT</option>
+                        <option value="TI">Tarjeta de Identidad</option>
+                        <option value="PP">Pasaporte</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>📄 Número de Documento <span class="required">*</span></label>
+                    <input type="text" id="customer-doc-number" placeholder="1234567890" required>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('customer-modal').remove()">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="submitCustomerForm(${amount}, '${description}', ${count})">
+                        Continuar al Pago
+                    </button>
+                </div>
+                
+                <p class="info-text">
+                    🔒 Tus datos están protegidos y serán usados únicamente para procesar tu compra
+                </p>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Focus en el primer campo
+    setTimeout(() => {
+        document.getElementById('customer-email').focus();
+    }, 300);
+}
 
-                const percentage = Number(data.percentage || 0).toFixed(1);
+// ==================== VALIDAR Y ENVIAR FORMULARIO ====================
+async function submitCustomerForm(amount, description, count) {
+    const email = document.getElementById('customer-email').value.trim();
+    const name = document.getElementById('customer-name').value.trim();
+    const phone = document.getElementById('customer-phone').value.trim();
+    const docType = document.getElementById('customer-doc-type').value;
+    const docNumber = document.getElementById('customer-doc-number').value.trim();
+    
+    const errorDiv = document.getElementById('form-error');
+    
+    // Validaciones
+    if (!email || !email.includes('@')) {
+        showFormError('Por favor, ingresa un email válido');
+        return;
+    }
+    
+    if (!name || name.length < 3) {
+        showFormError('Por favor, ingresa tu nombre completo');
+        return;
+    }
+    
+    if (!phone || phone.length < 7) {
+        showFormError('Por favor, ingresa un número de teléfono válido');
+        return;
+    }
+    
+    if (!docType) {
+        showFormError('Por favor, selecciona el tipo de documento');
+        return;
+    }
+    
+    if (!docNumber || docNumber.length < 5) {
+        showFormError('Por favor, ingresa un número de documento válido');
+        return;
+    }
+    
+    // Validar formato de teléfono colombiano
+    const phoneRegex = /^3\d{9}$/;
+    if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+        showFormError('El teléfono debe ser un número celular colombiano (10 dígitos, comenzando con 3)');
+        return;
+    }
+    
+    // Todo válido, procesar pago
+    errorDiv.style.display = 'none';
+    
+    const customerData = {
+        email,
+        name,
+        phone,
+        document_type: docType,
+        document_number: docNumber
+    };
+    
+    // Cerrar modal de formulario
+    document.getElementById('customer-modal').remove();
+    
+    // Procesar pago con MercadoPago
+    await processMercadoPago(amount, description, count, customerData);
+}
 
-                // Update UI (only percentage shown)
-                progressFill.style.width = percentage + '%';
-                progressFill.setAttribute('aria-valuenow', percentage);
-                percentageEl.textContent = percentage;
+function showFormError(message) {
+    const errorDiv = document.getElementById('form-error');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    
+    // Scroll al error
+    errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 
-            } catch (error) {
-                console.error('Error fetching progress:', error);
+// ==================== MERCADOPAGO - PROCESO COMPLETO ====================
+async function processMercadoPago(amount, description, count, customerData) {
+    // Mostrar loading
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'mp-loading';
+    loadingDiv.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        animation: fadeIn 0.3s ease;
+    `;
+    loadingDiv.innerHTML = `
+        <div style="background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); padding: 50px; border-radius: 20px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <div style="width: 80px; height: 80px; border: 6px solid #f3f3f3; border-top: 6px solid #009EE3; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 25px;"></div>
+            <h2 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 1.5em;">Procesando tu pago</h2>
+            <p style="color: #666; margin: 0; font-size: 1.1em;">Espera un momento...</p>
+            <p style="color: #999; margin-top: 15px; font-size: 0.9em;">Serás redirigido a MercadoPago</p>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    try {
+        console.log('📤 Enviando datos a MercadoPago...', {
+            amount,
+            count,
+            email: customerData.email
+        });
+        
+        // Llamar al backend para crear la preferencia
+        const response = await fetch('/api/mercadopago/create_preference', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                amount: parseFloat(amount),
+                quantity: count,
+                email: customerData.email,
+                name: customerData.name,
+                phone: customerData.phone,
+                document_type: customerData.document_type,
+                document_number: customerData.document_number,
+                description: description
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error HTTP:', response.status, errorText);
+            throw new Error(`Error del servidor: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('📥 Respuesta del servidor:', data);
+        
+        if (data.status === 'success' && data.init_point) {
+            console.log('✅ Preferencia creada:', data.preference_id);
+            console.log('🔗 Redirigiendo a:', data.init_point);
+            
+            // Pequeño delay para que el usuario vea el mensaje
+            setTimeout(() => {
+                window.location.href = data.init_point;
+            }, 1500);
+        } else {
+            throw new Error(data.message || 'Error al crear la preferencia de pago');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error con MercadoPago:', error);
+        
+        // Remover loading
+        if (document.getElementById('mp-loading')) {
+            document.body.removeChild(loadingDiv);
+        }
+        
+        // Mostrar error profesional
+        showPaymentError(error.message);
+    }
+}
+
+function showPaymentError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        z-index: 100000;
+        text-align: center;
+        max-width: 450px;
+        width: 90%;
+        animation: slideUp 0.4s ease;
+    `;
+    errorDiv.innerHTML = `
+        <div style="color: #e74c3c; font-size: 60px; margin-bottom: 20px;">⚠️</div>
+        <h2 style="color: #2c3e50; margin-bottom: 15px; font-size: 1.6em;">Error al procesar</h2>
+        <p style="color: #666; margin-bottom: 25px; line-height: 1.6;">${message}</p>
+        <p style="color: #999; font-size: 0.9em; margin-bottom: 20px;">Por favor, intenta nuevamente o contacta a soporte.</p>
+        <button onclick="this.parentElement.remove()" style="
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 14px 35px;
+            border-radius: 12px;
+            font-size: 1.05em;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            Cerrar
+        </button>
+    `;
+    document.body.appendChild(errorDiv);
+}
+
+// ==================== PROGRESS BAR ====================
+async function updateProgress() {
+    try {
+        const response = await fetch('/progress');
+        if (!response.ok) throw new Error('Response not OK');
+        
+        const data = await response.json();
+        const progressFill = document.getElementById('progressFill');
+        const percentageEl = document.getElementById('percentage');
+        const percentage = Number(data.percentage || 0).toFixed(1);
+        
+        if (progressFill) {
+            progressFill.style.width = percentage + '%';
+            progressFill.setAttribute('aria-valuenow', percentage);
+        }
+        
+        if (percentageEl) {
+            percentageEl.textContent = percentage;
+        }
+        
+    } catch (error) {
+        console.error('Error fetching progress:', error);
+    }
+}
+
+// ==================== NÚMEROS BENDITOS ====================
+(function() {
+    'use strict';
+    
+    function initDOMElements() {
+        const tickets = document.querySelectorAll('.tickets .ticket');
+        if (tickets.length >= 2) {
+            return {
+                ticket1: tickets[0],
+                ticket2: tickets[1]
+            };
+        }
+        return null;
+    }
+    
+    function updateTicketContent(ticket, number) {
+        if (!ticket) return;
+        const numberElement = ticket.querySelector('.ticket-content p');
+        
+        if (numberElement) {
+            if (number) {
+                numberElement.textContent = number;
+                numberElement.style.fontSize = '1.8em';
+            } else {
+                numberElement.textContent = 'PRÓXIMAMENTE';
+                numberElement.style.fontSize = '1em';
             }
         }
+    }
+    
+    async function updateBlessedNumbers() {
+        try {
+            const response = await fetch('/api/blessed_numbers_status');
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            const tickets = initDOMElements();
+            if (!tickets) return;
+            
+            if (data.visible && data.numbers && data.numbers.length > 0) {
+                updateTicketContent(tickets.ticket1, data.numbers[0] || null);
+                updateTicketContent(tickets.ticket2, data.numbers[1] || null);
+            } else {
+                updateTicketContent(tickets.ticket1, null);
+                updateTicketContent(tickets.ticket2, null);
+            }
+        } catch (error) {
+            console.error('Error actualizando números benditos:', error);
+        }
+    }
+    
+    function init() {
+        updateBlessedNumbers();
+        setInterval(updateBlessedNumbers, 10000);
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
 
-        // Initialize progress at 0 and poll every 10 seconds
-        document.addEventListener('DOMContentLoaded', function() {
-            // Ensure starting visuals show 0
-            document.getElementById('progressFill').style.width = '0%';
-            document.getElementById('percentage').textContent = '0.0';
+// ==================== MODAL ====================
+function closeModal() {
+    const modal = document.getElementById('previewModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
 
-            // First fetch and then periodic updates
-            updateProgress();
-            setInterval(updateProgress, 10000); // every 10s
-        });
-    </script>
+// ==================== INICIALIZAR TODO ====================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando sistema de pagos MercadoPago...');
+    
+    // Inicializar barra de progreso
+    const progressFill = document.getElementById('progressFill');
+    const percentage = document.getElementById('percentage');
+    
+    if (progressFill) progressFill.style.width = '0%';
+    if (percentage) percentage.textContent = '0.0';
+    
+    // Cargar configuración de pago
+    loadPaymentConfig();
+    
+    // Actualizar progreso
+    updateProgress();
+    setInterval(updateProgress, 10000);
+    
+    console.log('✅ Sistema inicializado correctamente');
+});
 
+</script>
     <!-- WhatsApp Sticker -->
     <a href="https://wa.me/573206729877?text=Hola%20necesito%20soporte" target="_blank" class="whatsapp-sticker">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1376,82 +1899,9 @@ footer::before {
             });
     </script>
 
-    <!-- Agregar justo antes de </body> -->
-<script>
-(function() {
-    'use strict';
-    
-    const CHECK_INTERVAL = 10000; // 10 segundos
-    
-    function initDOMElements() {
-        const tickets = document.querySelectorAll('.tickets .ticket');
-        
-        if (tickets.length >= 2) {
-            return {
-                ticket1: tickets[0],
-                ticket2: tickets[1]
-            };
-        }
-        return null;
-    }
-    
-    function updateTicketContent(ticket, number) {
-        if (!ticket) return;
-        
-        const numberElement = ticket.querySelector('.ticket-content p');
-        
-        if (numberElement) {
-            if (number) {
-                numberElement.textContent = number;
-                numberElement.style.fontSize = '1.8em';
-            } else {
-                numberElement.textContent = 'PRÓXIMAMENTE';
-                numberElement.style.fontSize = '1em';
-            }
-        }
-    }
-    
-    async function updateBlessedNumbers() {
-        try {
-            const response = await fetch('/api/blessed_numbers_status');
-            
-            if (!response.ok) {
-                console.warn('Error en API:', response.status);
-                return;
-            }
-            
-            const data = await response.json();
-            const tickets = initDOMElements();
-            
-            if (!tickets) return;
-            
-            if (data.visible && data.numbers && data.numbers.length > 0) {
-                updateTicketContent(tickets.ticket1, data.numbers[0] || null);
-                updateTicketContent(tickets.ticket2, data.numbers[1] || null);
-            } else {
-                updateTicketContent(tickets.ticket1, null);
-                updateTicketContent(tickets.ticket2, null);
-            }
-            
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
-    
-    function init() {
-        updateBlessedNumbers();
-        setInterval(updateBlessedNumbers, CHECK_INTERVAL);
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
-</script>
 
-<script src="https://checkout.epayco.co/checkout.js"></script>
+
+
 
 <!-- Banner de cookies -->
 <script src="../cookies-banner.js"></script>

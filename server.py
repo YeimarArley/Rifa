@@ -15,6 +15,7 @@ import secrets
 from flask_talisman import Talisman
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
+import mercadopago
 
 # ==================== CONFIGURACIÓN INICIAL ====================
 load_dotenv()
@@ -41,7 +42,53 @@ if IS_PRODUCTION:
 else:
     print("⚠️  DEVELOPMENT MODE: HTTP permitido")
 
+# ==================== PROTECCIÓN CON CONTRASEÑA TEMPORAL ====================
+# COLOCA ESTO INMEDIATAMENTE DESPUÉS DE app.before_request de Talisman
+
+@app.before_request
+def check_access_code():
+    """Requiere código de acceso temporal - VERSIÓN CORREGIDA"""
+    
+    # Solo activar en producción
+    if os.getenv('ENVIRONMENT') != 'production':
+        return None
+    
+    # Rutas que NUNCA requieren código (webhooks críticos)
+    exempt_routes = [
+        '/webhooks/mercadopago',
+        '/static/',
+        '/verify_access'
+    ]
+    
+    # Si es ruta exenta, permitir
+    if any(request.path.startswith(route) for route in exempt_routes):
+        return None
+    
+    # Si ya tiene acceso válido, permitir
+    if session.get('has_access') == True:
+        return None
+    
+    # Si llegó aquí, debe verificar
+    return render_template('access_gate.html')
+
+
+@app.route('/verify_access', methods=['POST'])
+def verify_access():
+    """Verifica el código de acceso"""
+    code = request.form.get('code', '').strip()
+    correct_code = os.getenv('ACCESS_CODE', 'RIFA2025TEST')
+    
+    if code == correct_code:
+        session['has_access'] = True
+        session.permanent = True  # Mantener sesión activa
+        logger.info(f"✅ Acceso concedido desde IP: {request.remote_addr}")
+        return redirect('/')
+    else:
+        logger.warning(f"❌ Intento fallido desde IP: {request.remote_addr}")
+        return render_template('access_gate.html', error='Código incorrecto')
 # Proteger archivos sensibles
+
+
 @app.before_request
 def block_sensitive_files():
     blocked_extensions = ['.env', '.py', '.pyc', '.db', '.log', '.key']
@@ -85,6 +132,23 @@ except Exception as e:
 # ==================== CONFIGURACIÓN DE PAGOS ====================
 EPAYCO_PUBLIC_KEY = os.getenv('EPAYCO_PUBLIC_KEY', '70b19a05a3f3374085061d1bfd386a8b')
 EPAYCO_PRIVATE_KEY = os.getenv('EPAYCO_PRIVATE_KEY', 'your_private_key_here')
+
+# MercadoPago
+MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN', '')
+MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY', '')
+
+# Control de pasarelas activas
+ACTIVE_GATEWAY = os.getenv('ACTIVE_GATEWAY', 'epayco')  # 'epayco', 'mercadopago', 'both'
+PREFERRED_GATEWAY = os.getenv('PREFERRED_GATEWAY', 'epayco')  # Para modo 'both'
+
+# Inicializar MercadoPago SDK solo si está configurado
+mp_sdk = None
+if MERCADOPAGO_ACCESS_TOKEN:
+    try:
+        mp_sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
+        logger.info("✅ MercadoPago SDK inicializado")
+    except Exception as e:
+        logger.error(f"❌ Error inicializando MercadoPago: {e}")
 
 # ==================== CONFIGURACIÓN DE BREVO ====================
 BREVO_API_KEY = os.getenv('BREVO_API_KEY')
@@ -488,7 +552,416 @@ def send_purchase_confirmation_email(customer_email, customer_name, numbers, amo
         import traceback
         traceback.print_exc()
         return False
+    
+# ==================== ENDPOINT: Obtener configuración de pasarelas ====================
+@app.route('/api/payment_gateways')
+def get_payment_gateways():
+    """Retorna configuración de pasarelas disponibles"""
+    try:
+        gateways = {
+            'active_gateway': ACTIVE_GATEWAY,
+            'preferred_gateway': PREFERRED_GATEWAY,
+            'available': []
+        }
+        
+        # Verificar ePayco
+        if EPAYCO_PUBLIC_KEY and ACTIVE_GATEWAY in ['epayco', 'both']:
+            gateways['available'].append({
+                'id': 'epayco',
+                'name': 'ePayco',
+                'public_key': EPAYCO_PUBLIC_KEY,
+                'enabled': True
+            })
+        
+        # Verificar MercadoPago
+        if MERCADOPAGO_PUBLIC_KEY and mp_sdk and ACTIVE_GATEWAY in ['mercadopago', 'both']:
+            gateways['available'].append({
+                'id': 'mercadopago',
+                'name': 'MercadoPago',
+                'public_key': MERCADOPAGO_PUBLIC_KEY,
+                'enabled': True
+            })
+        
+        return jsonify(gateways)
+        
+    except Exception as e:
+        logger.error(f"Error en payment_gateways: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+# ==================== MERCADOPAGO: Crear preferencia CORREGIDO ====================
+@app.route('/api/mercadopago/create_preference', methods=['POST'])
+def mp_create_preference():
+    """Crea preferencia de pago en MercadoPago - VERSIÓN CORREGIDA"""
+    try:
+        if not mp_sdk:
+            logger.error("❌ MercadoPago SDK no inicializado")
+            return jsonify({
+                'status': 'error',
+                'message': 'MercadoPago no está configurado'
+            }), 400
+        
+        data = request.get_json()
+        logger.info(f"📥 Datos recibidos: {data}")
+        
+        # Extraer y validar datos
+        amount = float(data.get('amount', 0))
+        quantity = int(data.get('quantity', 0))
+        email = data.get('email', '').strip()
+        name = data.get('name', '').strip()
+        phone = data.get('phone', '').strip()
+        document_type = data.get('document_type', 'CC').strip()
+        document_number = data.get('document_number', '').strip()
+        description = data.get('description', f'Rifa 5 Millones - {quantity} números')
+        
+        # Validaciones
+        if not email or '@' not in email:
+            logger.error("❌ Email inválido")
+            return jsonify({'status': 'error', 'message': 'Email inválido'}), 400
+        
+        if not name or len(name) < 3:
+            logger.error("❌ Nombre inválido")
+            return jsonify({'status': 'error', 'message': 'Nombre inválido'}), 400
+        
+        if not phone or len(phone) < 7:
+            logger.error("❌ Teléfono inválido")
+            return jsonify({'status': 'error', 'message': 'Teléfono inválido'}), 400
+        
+        if not document_number or len(document_number) < 5:
+            logger.error("❌ Documento inválido")
+            return jsonify({'status': 'error', 'message': 'Número de documento inválido'}), 400
+        
+        if amount <= 0:
+            logger.error("❌ Monto inválido")
+            return jsonify({'status': 'error', 'message': 'Monto inválido'}), 400
+        
+        # Crear ID único
+        invoice_id = f"rifa_mp_{uuid.uuid4().hex[:12]}"
+        
+        logger.info(f"✅ Validaciones OK - Creando preferencia para {email}")
+        
+        # Separar nombre en partes (MercadoPago lo requiere)
+        name_parts = name.split(' ', 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else first_name
+        
+        # ✅ CONFIGURACIÓN DE URLs - ADAPTADO PARA DESARROLLO
+        # En desarrollo, MercadoPago requiere URLs públicas o usar ngrok
+        # Por ahora, usamos URLs de ejemplo que luego se pueden cambiar
+        
+        # Detectar si estamos en desarrollo
+        is_dev = os.getenv('ENVIRONMENT') != 'production'
+        
+        if is_dev:
+            # URLs para pruebas (MercadoPago las acepta aunque no sean accesibles en dev)
+            success_url = "https://www.mercadopago.com.co/checkout/v1/payment/success"
+            failure_url = "https://www.mercadopago.com.co/checkout/v1/payment/failure"
+            pending_url = "https://www.mercadopago.com.co/checkout/v1/payment/pending"
+            # Para desarrollo, el webhook NO funcionará desde localhost
+            # Necesitarás ngrok o similar para recibir webhooks en desarrollo
+            notification_url = None  # Se omite en desarrollo
+            logger.warning("⚠️ DESARROLLO: URLs de retorno temporales. Webhooks desactivados.")
+        else:
+            # URLs de producción
+            success_url = f"{BASE_URL}/payment/success"
+            failure_url = f"{BASE_URL}/payment/failure"
+            pending_url = f"{BASE_URL}/payment/pending"
+            notification_url = f"{BASE_URL}/webhooks/mercadopago"
+        
+        # Crear preferencia con estructura completa
+        preference_data = {
+            "items": [
+                {
+                    "title": description,
+                    "description": f"{quantity} números para la Rifa de 5 Millones",
+                    "quantity": 1,
+                    "unit_price": float(amount),
+                    "currency_id": "COP"
+                }
+            ],
+            "payer": {
+                "name": first_name,
+                "surname": last_name,
+                "email": email,
+                "phone": {
+                    "area_code": "57",
+                    "number": phone.replace(' ', '')
+                },
+                "identification": {
+                    "type": document_type,
+                    "number": document_number
+                }
+            },
+            "back_urls": {
+                "success": success_url,
+                "failure": failure_url,
+                "pending": pending_url
+            },
+            "auto_return": "approved",
+            "external_reference": invoice_id,
+            "statement_descriptor": "RIFA 5 MILLONES",
+            "payment_methods": {
+                "excluded_payment_types": [],
+                "installments": 1
+            },
+            "metadata": {
+                "customer_name": name,
+                "customer_email": email,
+                "customer_phone": phone,
+                "quantity": quantity,
+                "invoice_id": invoice_id
+            }
+        }
+        
+        # Solo agregar notification_url en producción
+        if notification_url:
+            preference_data["notification_url"] = notification_url
+        
+        logger.info(f"📤 Enviando preferencia a MercadoPago...")
+        logger.debug(f"Datos de preferencia: {preference_data}")
+        
+        # Crear preferencia
+        try:
+            preference_response = mp_sdk.preference().create(preference_data)
+            
+            # Verificar si hay respuesta
+            if "response" not in preference_response:
+                logger.error(f"❌ Respuesta inesperada de MercadoPago: {preference_response}")
+                return jsonify({
+                    "status": "error", 
+                    "message": "Error en la respuesta de MercadoPago"
+                }), 500
+            
+            preference = preference_response["response"]
+            
+            # Verificar si la preferencia tiene ID
+            if "id" not in preference:
+                logger.error(f"❌ Preferencia sin ID: {preference}")
+                return jsonify({
+                    "status": "error", 
+                    "message": f"Error de MercadoPago: {preference.get('message', 'Unknown error')}"
+                }), 500
+            
+            logger.info(f"✅ MercadoPago preferencia creada: {preference['id']}")
+            logger.info(f"🔗 Init point: {preference.get('init_point', 'N/A')}")
+            
+            # En desarrollo, guardar directamente en DB porque no habrá webhook
+            if is_dev:
+                logger.info("💾 Modo desarrollo: Pre-guardando datos en DB...")
+                try:
+                    # Calcular números
+                    num_tickets_map = {
+                        25000: 4, 53000: 8, 81000: 12,
+                        109000: 16, 137000: 20
+                    }
+                    num_tickets = num_tickets_map.get(int(amount), max(1, int(amount / 6250)))
+                    
+                    # Asignar números
+                    numbers = assign_numbers(num_tickets)
+                    
+                    # Guardar en BD con estado "pending"
+                    client_info = {
+                        'full_name': name,
+                        'document_type': document_type,
+                        'document_number': document_number,
+                        'phone': phone,
+                        'transaction_id': preference['id'],
+                        'payment_method': 'MercadoPago - Pending',
+                        'response_code': 'pending'
+                    }
+                    
+                    # Modificar save_purchase para aceptar status pending
+                    numbers_str = ','.join(map(str, numbers))
+                    app_db.run_query("""
+                        INSERT INTO purchases 
+                        (invoice_id, amount, email, numbers, status, full_name, document_type, 
+                         document_number, phone, payment_method, transaction_id, response_code)
+                        VALUES (%s, %s, %s, %s, 'pending', %s, %s, %s, %s, %s, %s, %s)
+                    """, params=(
+                        invoice_id, amount, email, numbers_str,
+                        name, document_type, document_number, phone,
+                        'MercadoPago - Test', preference['id'], 'pending'
+                    ), commit=True)
+                    
+                    for number in numbers:
+                        app_db.run_query(
+                            "INSERT INTO assigned_numbers (number, invoice_id, is_confirmed) VALUES (%s, %s, FALSE)", 
+                            params=(number, invoice_id), commit=True
+                        )
+                    
+                    logger.info(f"✅ Datos pre-guardados en desarrollo: {invoice_id}")
+                    
+                except Exception as save_error:
+                    logger.error(f"⚠️ Error pre-guardando en desarrollo: {save_error}")
+            
+            return jsonify({
+                "status": "success",
+                "gateway": "mercadopago",
+                "preference_id": preference["id"],
+                "init_point": preference.get("init_point"),
+                "sandbox_init_point": preference.get("sandbox_init_point"),
+                "invoice_id": invoice_id,
+                "dev_mode": is_dev,
+                "warning": "Modo desarrollo: Webhooks no funcionarán desde localhost" if is_dev else None
+            })
+            
+        except Exception as mp_error:
+            logger.error(f"❌ Error en SDK de MercadoPago: {mp_error}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                "status": "error", 
+                "message": f"Error de MercadoPago: {str(mp_error)}"
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"❌ Error en MercadoPago: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error", 
+            "message": f"Error del servidor: {str(e)}"
+        }), 500
 
+
+# ==================== MERCADOPAGO: Webhook MEJORADO ====================
+@app.route('/webhooks/mercadopago', methods=['POST'])
+def mercadopago_webhook():
+    """Procesa notificaciones de MercadoPago"""
+    try:
+        data = request.get_json()
+        logger.info(f"📥 MercadoPago webhook: {data}")
+        
+        # Verificar tipo de notificación
+        if data.get("type") == "payment":
+            payment_id = data["data"]["id"]
+            
+            logger.info(f"💳 Obteniendo información del pago: {payment_id}")
+            
+            # Obtener información del pago
+            payment_info = mp_sdk.payment().get(payment_id)
+            payment = payment_info["response"]
+            
+            logger.info(f"📊 Estado del pago: {payment['status']}")
+            
+            # Verificar estado
+            if payment["status"] == "approved":
+                external_reference = payment.get("external_reference")
+                amount = payment["transaction_amount"]
+                
+                # Información del pagador
+                payer = payment.get("payer", {})
+                payer_email = payer.get("email", "")
+                first_name = payer.get("first_name", "")
+                last_name = payer.get("last_name", "")
+                payer_name = f"{first_name} {last_name}".strip()
+                
+                identification = payer.get("identification", {})
+                document_type = identification.get("type", "")
+                document_number = identification.get("number", "")
+                
+                phone_data = payer.get("phone", {})
+                phone = phone_data.get("number", "") if isinstance(phone_data, dict) else ""
+                
+                logger.info(f"✅ Pago aprobado: {external_reference}")
+                
+                # Verificar si ya existe (puede estar en pending desde create_preference)
+                existing = app_db.run_query(
+                    "SELECT id, status FROM purchases WHERE invoice_id = %s", 
+                    params=(external_reference,), 
+                    fetchone=True
+                )
+                
+                if existing and existing[1] == 'confirmed':
+                    logger.warning(f"⚠️ Pago ya confirmado: {external_reference}")
+                    return jsonify({'status': 'ok', 'message': 'Already confirmed'}), 200
+                
+                # Calcular números
+                num_tickets_map = {
+                    25000: 4, 53000: 8, 81000: 12,
+                    109000: 16, 137000: 20
+                }
+                num_tickets = num_tickets_map.get(int(amount), max(1, int(amount / 6250)))
+                
+                if existing:
+                    # Actualizar registro existente
+                    logger.info(f"📝 Actualizando compra existente: {external_reference}")
+                    app_db.run_query("""
+                        UPDATE purchases 
+                        SET status = 'confirmed', 
+                            full_name = %s,
+                            document_type = %s,
+                            document_number = %s,
+                            phone = %s,
+                            payment_method = %s,
+                            response_code = %s,
+                            confirmed_at = CURRENT_TIMESTAMP
+                        WHERE invoice_id = %s
+                    """, params=(
+                        payer_name, document_type, document_number, phone,
+                        f"MercadoPago - {payment.get('payment_method_id', '')}",
+                        payment.get("status_detail", ""),
+                        external_reference
+                    ), commit=True)
+                    
+                    # Confirmar números asignados
+                    app_db.run_query("""
+                        UPDATE assigned_numbers 
+                        SET is_confirmed = TRUE 
+                        WHERE invoice_id = %s
+                    """, params=(external_reference,), commit=True)
+                    
+                    # Obtener números para el email
+                    numbers_result = app_db.run_query(
+                        "SELECT numbers FROM purchases WHERE invoice_id = %s",
+                        params=(external_reference,),
+                        fetchone=True
+                    )
+                    numbers = [int(n) for n in numbers_result[0].split(',')] if numbers_result else []
+                    
+                else:
+                    # Crear nuevo registro
+                    logger.info(f"💾 Creando nueva compra: {external_reference}")
+                    numbers = assign_numbers(num_tickets)
+                    
+                    client_info = {
+                        'full_name': payer_name,
+                        'document_type': document_type,
+                        'document_number': document_number,
+                        'phone': phone,
+                        'transaction_id': str(payment_id),
+                        'payment_method': f"MercadoPago - {payment.get('payment_method_id', '')}",
+                        'response_code': payment.get("status_detail", "")
+                    }
+                    
+                    saved = save_purchase(external_reference, amount, payer_email, numbers, **client_info)
+                    
+                    if not saved:
+                        logger.error(f"❌ No se pudo guardar: {external_reference}")
+                        return jsonify({'status': 'error'}), 500
+                
+                # Enviar email
+                try:
+                    send_purchase_confirmation_email(
+                        customer_email=payer_email,
+                        customer_name=payer_name,
+                        numbers=numbers,
+                        amount=amount,
+                        invoice_id=external_reference
+                    )
+                except Exception as email_error:
+                    logger.error(f"❌ Error enviando email: {email_error}")
+                
+                logger.info(f"✅✅✅ Compra completada: {external_reference}")
+        
+        return jsonify({'status': 'ok'}), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error webhook MercadoPago: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error'}), 500
+
+    
 # ==================== RUTAS DE AUTENTICACIÓN ====================
 
 @app.route('/admin/login', methods=['GET', 'POST'])
