@@ -72,20 +72,20 @@ else:
 #     return render_template('access_gate.html')
 
 
-@app.route('/verify_access', methods=['POST'])
-def verify_access():
-    """Verifica el código de acceso"""
-    code = request.form.get('code', '').strip()
-    correct_code = os.getenv('ACCESS_CODE', 'RIFA2025TEST')
-    
-    if code == correct_code:
-        session['has_access'] = True
-        session.permanent = True  # Mantener sesión activa
-        logger.info(f"✅ Acceso concedido desde IP: {request.remote_addr}")
-        return redirect('/')
-    else:
-        logger.warning(f"❌ Intento fallido desde IP: {request.remote_addr}")
-        return render_template('access_gate.html', error='Código incorrecto')
+#@app.route('/verify_access', methods=['POST'])
+#def verify_access():
+#    """Verifica el código de acceso"""
+#    code = request.form.get('code', '').strip()
+#    correct_code = os.getenv('ACCESS_CODE', 'RIFA2025TEST')
+#    
+#    if code == correct_code:
+#        session['has_access'] = True
+#        session.permanent = True  # Mantener sesión activa
+#        logger.info(f"✅ Acceso concedido desde IP: {request.remote_addr}")
+#        return redirect('/')
+#    else:
+#        logger.warning(f"❌ Intento fallido desde IP: {request.remote_addr}")
+#        return render_template('access_gate.html', error='Código incorrecto')
 # Proteger archivos sensibles
 
 
@@ -591,7 +591,7 @@ def get_payment_gateways():
 # ==================== MERCADOPAGO: Crear preferencia CORREGIDO ====================
 @app.route('/api/mercadopago/create_preference', methods=['POST'])
 def mp_create_preference():
-    """Crea preferencia de pago en MercadoPago - VERSIÓN CORREGIDA"""
+    """Crea preferencia de pago en MercadoPago - SIN PRE-GUARDAR"""
     try:
         if not mp_sdk:
             logger.error("❌ MercadoPago SDK no inicializado")
@@ -644,22 +644,16 @@ def mp_create_preference():
         first_name = name_parts[0]
         last_name = name_parts[1] if len(name_parts) > 1 else first_name
         
-        # ✅ CONFIGURACIÓN DE URLs - ADAPTADO PARA DESARROLLO
-        # En desarrollo, MercadoPago requiere URLs públicas o usar ngrok
-        # Por ahora, usamos URLs de ejemplo que luego se pueden cambiar
-        
         # Detectar si estamos en desarrollo
         is_dev = os.getenv('ENVIRONMENT') != 'production'
         
         if is_dev:
-            # URLs para pruebas (MercadoPago las acepta aunque no sean accesibles en dev)
-            success_url = "https://www.mercadopago.com.co/checkout/v1/payment/success"
-            failure_url = "https://www.mercadopago.com.co/checkout/v1/payment/failure"
-            pending_url = "https://www.mercadopago.com.co/checkout/v1/payment/pending"
-            # Para desarrollo, el webhook NO funcionará desde localhost
-            # Necesitarás ngrok o similar para recibir webhooks en desarrollo
+            # URLs para pruebas
+            success_url = f"{BASE_URL}/payment/success"
+            failure_url = f"{BASE_URL}/payment/failure"
+            pending_url = f"{BASE_URL}/payment/pending"
             notification_url = None  # Se omite en desarrollo
-            logger.warning("⚠️ DESARROLLO: URLs de retorno temporales. Webhooks desactivados.")
+            logger.warning("⚠️ DESARROLLO: Webhooks desactivados")
         else:
             # URLs de producción
             success_url = f"{BASE_URL}/payment/success"
@@ -717,15 +711,13 @@ def mp_create_preference():
             preference_data["notification_url"] = notification_url
         
         logger.info(f"📤 Enviando preferencia a MercadoPago...")
-        logger.debug(f"Datos de preferencia: {preference_data}")
         
         # Crear preferencia
         try:
             preference_response = mp_sdk.preference().create(preference_data)
             
-            # Verificar si hay respuesta
             if "response" not in preference_response:
-                logger.error(f"❌ Respuesta inesperada de MercadoPago: {preference_response}")
+                logger.error(f"❌ Respuesta inesperada: {preference_response}")
                 return jsonify({
                     "status": "error", 
                     "message": "Error en la respuesta de MercadoPago"
@@ -733,7 +725,6 @@ def mp_create_preference():
             
             preference = preference_response["response"]
             
-            # Verificar si la preferencia tiene ID
             if "id" not in preference:
                 logger.error(f"❌ Preferencia sin ID: {preference}")
                 return jsonify({
@@ -742,56 +733,9 @@ def mp_create_preference():
                 }), 500
             
             logger.info(f"✅ MercadoPago preferencia creada: {preference['id']}")
-            logger.info(f"🔗 Init point: {preference.get('init_point', 'N/A')}")
             
-            # En desarrollo, guardar directamente en DB porque no habrá webhook
-            if is_dev:
-                logger.info("💾 Modo desarrollo: Pre-guardando datos en DB...")
-                try:
-                    # Calcular números
-                    num_tickets_map = {
-                        25000: 4, 53000: 8, 81000: 12,
-                        109000: 16, 137000: 20
-                    }
-                    num_tickets = num_tickets_map.get(int(amount), max(1, int(amount / 6250)))
-                    
-                    # Asignar números
-                    numbers = assign_numbers(num_tickets)
-                    
-                    # Guardar en BD con estado "pending"
-                    client_info = {
-                        'full_name': name,
-                        'document_type': document_type,
-                        'document_number': document_number,
-                        'phone': phone,
-                        'transaction_id': preference['id'],
-                        'payment_method': 'MercadoPago - Pending',
-                        'response_code': 'pending'
-                    }
-                    
-                    # Modificar save_purchase para aceptar status pending
-                    numbers_str = ','.join(map(str, numbers))
-                    app_db.run_query("""
-                        INSERT INTO purchases 
-                        (invoice_id, amount, email, numbers, status, full_name, document_type, 
-                         document_number, phone, payment_method, transaction_id, response_code)
-                        VALUES (%s, %s, %s, %s, 'pending', %s, %s, %s, %s, %s, %s, %s)
-                    """, params=(
-                        invoice_id, amount, email, numbers_str,
-                        name, document_type, document_number, phone,
-                        'MercadoPago - Test', preference['id'], 'pending'
-                    ), commit=True)
-                    
-                    for number in numbers:
-                        app_db.run_query(
-                            "INSERT INTO assigned_numbers (number, invoice_id, is_confirmed) VALUES (%s, %s, FALSE)", 
-                            params=(number, invoice_id), commit=True
-                        )
-                    
-                    logger.info(f"✅ Datos pre-guardados en desarrollo: {invoice_id}")
-                    
-                except Exception as save_error:
-                    logger.error(f"⚠️ Error pre-guardando en desarrollo: {save_error}")
+            # ✅ NO GUARDAR NADA EN BASE DE DATOS AQUÍ
+            # El webhook se encargará cuando el pago sea aprobado
             
             return jsonify({
                 "status": "success",
@@ -799,9 +743,7 @@ def mp_create_preference():
                 "preference_id": preference["id"],
                 "init_point": preference.get("init_point"),
                 "sandbox_init_point": preference.get("sandbox_init_point"),
-                "invoice_id": invoice_id,
-                "dev_mode": is_dev,
-                "warning": "Modo desarrollo: Webhooks no funcionarán desde localhost" if is_dev else None
+                "invoice_id": invoice_id
             })
             
         except Exception as mp_error:
@@ -826,7 +768,7 @@ def mp_create_preference():
 # ==================== MERCADOPAGO: Webhook MEJORADO ====================
 @app.route('/webhooks/mercadopago', methods=['POST'])
 def mercadopago_webhook():
-    """Procesa notificaciones de MercadoPago"""
+    """Procesa notificaciones de MercadoPago - CON PROTECCIÓN DUPLICADOS"""
     try:
         data = request.get_json()
         logger.info(f"📥 MercadoPago webhook: {data}")
@@ -843,37 +785,47 @@ def mercadopago_webhook():
             
             logger.info(f"📊 Estado del pago: {payment['status']}")
             
-            # Verificar estado
-            if payment["status"] == "approved":
-                external_reference = payment.get("external_reference")
-                amount = payment["transaction_amount"]
+            # ✅ SOLO PROCESAR SI ESTÁ APROBADO
+            if payment["status"] != "approved":
+                logger.info(f"⏳ Pago no aprobado aún: {payment['status']}")
+                return jsonify({'status': 'ok', 'message': 'Not approved yet'}), 200
+            
+            external_reference = payment.get("external_reference")
+            amount = payment["transaction_amount"]
+            
+            # Información del pagador
+            payer = payment.get("payer", {})
+            payer_email = payer.get("email", "")
+            first_name = payer.get("first_name", "")
+            last_name = payer.get("last_name", "")
+            payer_name = f"{first_name} {last_name}".strip()
+            
+            identification = payer.get("identification", {})
+            document_type = identification.get("type", "")
+            document_number = identification.get("number", "")
+            
+            phone_data = payer.get("phone", {})
+            phone = phone_data.get("number", "") if isinstance(phone_data, dict) else ""
+            
+            logger.info(f"✅ Pago aprobado: {external_reference}")
+            
+            # ✅ VERIFICAR DUPLICADOS POR INVOICE_ID Y STATUS
+            existing = app_db.run_query("""
+                SELECT id, status FROM purchases 
+                WHERE invoice_id = %s 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """, params=(external_reference,), fetchone=True)
+            
+            if existing:
+                existing_id, existing_status = existing[0], existing[1]
                 
-                # Información del pagador
-                payer = payment.get("payer", {})
-                payer_email = payer.get("email", "")
-                first_name = payer.get("first_name", "")
-                last_name = payer.get("last_name", "")
-                payer_name = f"{first_name} {last_name}".strip()
-                
-                identification = payer.get("identification", {})
-                document_type = identification.get("type", "")
-                document_number = identification.get("number", "")
-                
-                phone_data = payer.get("phone", {})
-                phone = phone_data.get("number", "") if isinstance(phone_data, dict) else ""
-                
-                logger.info(f"✅ Pago aprobado: {external_reference}")
-                
-                # Verificar si ya existe (puede estar en pending desde create_preference)
-                existing = app_db.run_query(
-                    "SELECT id, status FROM purchases WHERE invoice_id = %s", 
-                    params=(external_reference,), 
-                    fetchone=True
-                )
-                
-                if existing and existing[1] == 'confirmed':
+                if existing_status == 'confirmed':
                     logger.warning(f"⚠️ Pago ya confirmado: {external_reference}")
                     return jsonify({'status': 'ok', 'message': 'Already confirmed'}), 200
+                
+                # Si existe pero está pending, actualizar
+                logger.info(f"📝 Actualizando compra existente: {external_reference}")
                 
                 # Calcular números
                 num_tickets_map = {
@@ -882,76 +834,100 @@ def mercadopago_webhook():
                 }
                 num_tickets = num_tickets_map.get(int(amount), max(1, int(amount / 6250)))
                 
-                if existing:
-                    # Actualizar registro existente
-                    logger.info(f"📝 Actualizando compra existente: {external_reference}")
-                    app_db.run_query("""
-                        UPDATE purchases 
-                        SET status = 'confirmed', 
-                            full_name = %s,
-                            document_type = %s,
-                            document_number = %s,
-                            phone = %s,
-                            payment_method = %s,
-                            response_code = %s,
-                            confirmed_at = CURRENT_TIMESTAMP
-                        WHERE invoice_id = %s
-                    """, params=(
-                        payer_name, document_type, document_number, phone,
-                        f"MercadoPago - {payment.get('payment_method_id', '')}",
-                        payment.get("status_detail", ""),
-                        external_reference
-                    ), commit=True)
-                    
-                    # Confirmar números asignados
+                # Obtener números existentes
+                numbers_result = app_db.run_query(
+                    "SELECT numbers FROM purchases WHERE id = %s",
+                    params=(existing_id,),
+                    fetchone=True
+                )
+                
+                if numbers_result and numbers_result[0]:
+                    # Ya tiene números asignados, solo actualizar status
+                    numbers = [int(n) for n in numbers_result[0].split(',')]
+                    logger.info(f"♻️ Usando números existentes: {numbers}")
+                else:
+                    # Asignar números nuevos
+                    numbers = assign_numbers(num_tickets)
+                    numbers_str = ','.join(map(str, numbers))
+                    logger.info(f"🎲 Números nuevos asignados: {numbers}")
+                
+                # Actualizar registro
+                app_db.run_query("""
+                    UPDATE purchases 
+                    SET status = 'confirmed', 
+                        full_name = %s,
+                        document_type = %s,
+                        document_number = %s,
+                        phone = %s,
+                        payment_method = %s,
+                        response_code = %s,
+                        numbers = %s,
+                        confirmed_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """, params=(
+                    payer_name, document_type, document_number, phone,
+                    f"MercadoPago - {payment.get('payment_method_id', '')}",
+                    payment.get("status_detail", ""),
+                    ','.join(map(str, numbers)),
+                    existing_id
+                ), commit=True)
+                
+                # Confirmar números asignados (si no existían)
+                if not numbers_result or not numbers_result[0]:
+                    for number in numbers:
+                        app_db.run_query(
+                            "INSERT INTO assigned_numbers (number, invoice_id, is_confirmed) VALUES (%s, %s, TRUE)", 
+                            params=(number, external_reference), commit=True
+                        )
+                else:
+                    # Solo confirmar
                     app_db.run_query("""
                         UPDATE assigned_numbers 
                         SET is_confirmed = TRUE 
                         WHERE invoice_id = %s
                     """, params=(external_reference,), commit=True)
-                    
-                    # Obtener números para el email
-                    numbers_result = app_db.run_query(
-                        "SELECT numbers FROM purchases WHERE invoice_id = %s",
-                        params=(external_reference,),
-                        fetchone=True
-                    )
-                    numbers = [int(n) for n in numbers_result[0].split(',')] if numbers_result else []
-                    
-                else:
-                    # Crear nuevo registro
-                    logger.info(f"💾 Creando nueva compra: {external_reference}")
-                    numbers = assign_numbers(num_tickets)
-                    
-                    client_info = {
-                        'full_name': payer_name,
-                        'document_type': document_type,
-                        'document_number': document_number,
-                        'phone': phone,
-                        'transaction_id': str(payment_id),
-                        'payment_method': f"MercadoPago - {payment.get('payment_method_id', '')}",
-                        'response_code': payment.get("status_detail", "")
-                    }
-                    
-                    saved = save_purchase(external_reference, amount, payer_email, numbers, **client_info)
-                    
-                    if not saved:
-                        logger.error(f"❌ No se pudo guardar: {external_reference}")
-                        return jsonify({'status': 'error'}), 500
                 
-                # Enviar email
-                try:
-                    send_purchase_confirmation_email(
-                        customer_email=payer_email,
-                        customer_name=payer_name,
-                        numbers=numbers,
-                        amount=amount,
-                        invoice_id=external_reference
-                    )
-                except Exception as email_error:
-                    logger.error(f"❌ Error enviando email: {email_error}")
+            else:
+                # ✅ CREAR NUEVO REGISTRO SOLO SI APROBADO
+                logger.info(f"💾 Creando nueva compra: {external_reference}")
                 
-                logger.info(f"✅✅✅ Compra completada: {external_reference}")
+                num_tickets_map = {
+                    25000: 4, 53000: 8, 81000: 12,
+                    109000: 16, 137000: 20
+                }
+                num_tickets = num_tickets_map.get(int(amount), max(1, int(amount / 6250)))
+                
+                numbers = assign_numbers(num_tickets)
+                
+                client_info = {
+                    'full_name': payer_name,
+                    'document_type': document_type,
+                    'document_number': document_number,
+                    'phone': phone,
+                    'transaction_id': str(payment_id),
+                    'payment_method': f"MercadoPago - {payment.get('payment_method_id', '')}",
+                    'response_code': payment.get("status_detail", "")
+                }
+                
+                saved = save_purchase(external_reference, amount, payer_email, numbers, **client_info)
+                
+                if not saved:
+                    logger.error(f"❌ No se pudo guardar: {external_reference}")
+                    return jsonify({'status': 'error'}), 500
+            
+            # ✅ ENVIAR EMAIL SOLO UNA VEZ
+            try:
+                send_purchase_confirmation_email(
+                    customer_email=payer_email,
+                    customer_name=payer_name,
+                    numbers=numbers,
+                    amount=amount,
+                    invoice_id=external_reference
+                )
+            except Exception as email_error:
+                logger.error(f"❌ Error enviando email: {email_error}")
+            
+            logger.info(f"✅✅✅ Compra completada: {external_reference}")
         
         return jsonify({'status': 'ok'}), 200
         
