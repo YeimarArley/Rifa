@@ -10,6 +10,7 @@ ENV/
 *.egg-info/
 dist/
 build/
+clean_test_data.py
 
 # Archivos sensibles
 .env
