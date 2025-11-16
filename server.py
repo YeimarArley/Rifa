@@ -45,31 +45,31 @@ else:
 # ==================== PROTECCIÓN CON CONTRASEÑA TEMPORAL ====================
 # COLOCA ESTO INMEDIATAMENTE DESPUÉS DE app.before_request de Talisman
 
-@app.before_request
-def check_access_code():
-    """Requiere código de acceso temporal - VERSIÓN CORREGIDA"""
+# @app.before_request
+# def check_access_code():
+#     """Requiere código de acceso temporal - VERSIÓN CORREGIDA"""
     
-    # Solo activar en producción
-    if os.getenv('ENVIRONMENT') != 'production':
-        return None
+#     # Solo activar en producción
+#     if os.getenv('ENVIRONMENT') != 'production':
+#         return None
     
-    # Rutas que NUNCA requieren código (webhooks críticos)
-    exempt_routes = [
-        '/webhooks/mercadopago',
-        '/static/',
-        '/verify_access'
-    ]
+#     # Rutas que NUNCA requieren código (webhooks críticos)
+#     exempt_routes = [
+#         '/webhooks/mercadopago',
+#         '/static/',
+#         '/verify_access'
+#     ]
     
-    # Si es ruta exenta, permitir
-    if any(request.path.startswith(route) for route in exempt_routes):
-        return None
+#     # Si es ruta exenta, permitir
+#     if any(request.path.startswith(route) for route in exempt_routes):
+#         return None
     
-    # Si ya tiene acceso válido, permitir
-    if session.get('has_access') == True:
-        return None
+#     # Si ya tiene acceso válido, permitir
+#     if session.get('has_access') == True:
+#         return None
     
-    # Si llegó aquí, debe verificar
-    return render_template('access_gate.html')
+#     # Si llegó aquí, debe verificar
+#     return render_template('access_gate.html')
 
 
 @app.route('/verify_access', methods=['POST'])
@@ -1288,6 +1288,67 @@ def api_blessed_numbers_status():
 @app.route('/test_epayco')
 def test_epayco():
     return render_template('test_epayco.html')
+
+# ==================== RUTAS DE RETORNO DE MERCADOPAGO ====================
+# Agregar después de las rutas públicas (después de /test_epayco)
+
+@app.route('/payment/success')
+def payment_success():
+    """Página de éxito después del pago con MercadoPago"""
+    try:
+        # Obtener parámetros de MercadoPago
+        collection_id = request.args.get('collection_id')
+        payment_id = request.args.get('payment_id')
+        external_reference = request.args.get('external_reference')
+        status = request.args.get('status')
+        
+        logger.info(f"✅ Payment success page: payment_id={payment_id}, ref={external_reference}")
+        
+        return render_template('payment_success.html', 
+                             payment_id=payment_id,
+                             reference=external_reference,
+                             status=status)
+    except Exception as e:
+        logger.error(f"Error en payment_success: {e}")
+        return redirect('/')
+
+
+@app.route('/payment/failure')
+def payment_failure():
+    """Página de error después del pago con MercadoPago"""
+    try:
+        payment_id = request.args.get('payment_id')
+        external_reference = request.args.get('external_reference')
+        status = request.args.get('status')
+        
+        logger.warning(f"❌ Payment failure: payment_id={payment_id}, ref={external_reference}")
+        
+        return render_template('payment_failure.html',
+                             payment_id=payment_id,
+                             reference=external_reference,
+                             status=status)
+    except Exception as e:
+        logger.error(f"Error en payment_failure: {e}")
+        return redirect('/')
+
+
+@app.route('/payment/pending')
+def payment_pending():
+    """Página de pago pendiente con MercadoPago"""
+    try:
+        payment_id = request.args.get('payment_id')
+        external_reference = request.args.get('external_reference')
+        status = request.args.get('status')
+        
+        logger.info(f"⏳ Payment pending: payment_id={payment_id}, ref={external_reference}")
+        
+        return render_template('payment_pending.html',
+                             payment_id=payment_id,
+                             reference=external_reference,
+                             status=status)
+    except Exception as e:
+        logger.error(f"Error en payment_pending: {e}")
+        return redirect('/')
 
 # ==================== RUTAS PROTEGIDAS ====================
 
