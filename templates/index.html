@@ -1280,36 +1280,43 @@ footer::before {
 
         // Function to show purchase modal using ePayco checkout
         function showPurchaseModal(amount, description, count) {
-            if (!epaycoReady) {
-                alert('⏳ Cargando pasarela de pago... Intenta de nuevo en unos segundos.');
-                return;
-            }
+    if (!epaycoReady) {
+        alert('⏳ Cargando pasarela de pago... Intenta de nuevo en unos segundos.');
+        return;
+    }
 
-            ePayco.checkout.configure({
-                key: '70b19a05a3f3374085061d1bfd386a8b',
-                test: false
-            });
-            ePayco.checkout.open({
-                name: "Rifa 5 Millones",
-                description: description,
-                invoice: "rifa_" + Date.now(),
-                currency: "COP",
-                amount: amount,
-                tax_base: "0",
-                tax: "0",
-                country: "co",
-                lang: "es",
-                external: "false",
-                response: "http://localhost:5000/response",
-                confirmation: "http://localhost:5000/confirmation",
-                email_billing: "",
-                name_billing: "",
-                address_billing: "",
-                type_doc_billing: "",
-                mobilephone_billing: "",
-                number_doc_billing: ""
-            });
-        }
+    // ✅ URL DINÁMICA
+    const baseUrl = window.location.origin;
+    
+    console.log('🔧 Base URL:', baseUrl);
+    console.log('💳 Amount:', amount);
+
+    ePayco.checkout.configure({
+        key: '70b19a05a3f3374085061d1bfd386a8b',
+        test: false
+    });
+    
+    ePayco.checkout.open({
+        name: "Rifa 5 Millones",
+        description: description,
+        invoice: "rifa_" + Date.now(),
+        currency: "COP",
+        amount: amount,
+        tax_base: "0",
+        tax: "0",
+        country: "co",
+        lang: "es",
+        external: "false",
+        response: baseUrl + "/response",
+        confirmation: baseUrl + "/confirmation",
+        email_billing: "",
+        name_billing: "",
+        address_billing: "",
+        type_doc_billing: "",
+        mobilephone_billing: "",
+        number_doc_billing: ""
+    });
+}
 
         // Function to update progress bar and text from /progress endpoint
         async function updateProgress() {
