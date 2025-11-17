@@ -14,7 +14,7 @@
                 right: 0;
                 background: rgba(0, 0, 0, 0.9);
                 color: white;
-                padding: 15px 20px;
+                padding: 8px 20px;
                 text-align: center;
                 font-family: 'Segoe UI', sans-serif;
                 font-size: 12px;
