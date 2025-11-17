@@ -711,9 +711,9 @@
 
 
 
-        /* Attention-Grabbing Buy Button Styles */
+        /* Attention-Grabbing Buy Button Styles - Green */
         .buy-button {
-            background: linear-gradient(135deg, #FF6B35 0%, #FF5722 50%, #E64A19 100%);
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 50%, #388E3C 100%);
             background-size: 200% 200%;
             color: #ffffff;
             border: none;
@@ -723,7 +723,7 @@
             font-weight: 800;
             cursor: pointer;
             box-shadow:
-                0 8px 25px rgba(255, 107, 53, 0.4),
+                0 8px 25px rgba(76, 175, 80, 0.4),
                 0 4px 15px rgba(0,0,0,0.2),
                 inset 0 2px 0 rgba(255,255,255,0.3);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -754,7 +754,7 @@
         .buy-button:hover {
             transform: translateY(-3px) scale(1.05);
             box-shadow:
-                0 12px 35px rgba(255, 107, 53, 0.6),
+                0 12px 35px rgba(76, 175, 80, 0.6),
                 0 6px 20px rgba(0,0,0,0.3),
                 inset 0 3px 0 rgba(255,255,255,0.4);
             animation: buttonPulse 1s ease-in-out infinite;
@@ -763,7 +763,7 @@
         .buy-button:active {
             transform: translateY(-1px) scale(1.02);
             box-shadow:
-                0 6px 20px rgba(255, 107, 53, 0.5),
+                0 6px 20px rgba(76, 175, 80, 0.5),
                 0 3px 10px rgba(0,0,0,0.2),
                 inset 0 2px 0 rgba(255,255,255,0.2);
         }
@@ -775,6 +775,48 @@
         }
 
         @keyframes buttonPulse {
+            0%, 100% {
+                box-shadow:
+                    0 8px 25px rgba(76, 175, 80, 0.4),
+                    0 4px 15px rgba(0,0,0,0.2),
+                    inset 0 2px 0 rgba(255,255,255,0.3);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow:
+                    0 12px 35px rgba(76, 175, 80, 0.7),
+                    0 6px 20px rgba(0,0,0,0.3),
+                    inset 0 3px 0 rgba(255,255,255,0.4);
+                transform: scale(1.02);
+            }
+        }
+
+        /* Orange Buy Button for 2-Number Package */
+        .orange-buy-button {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF5722 50%, #E64A19 100%);
+            box-shadow:
+                0 8px 25px rgba(255, 107, 53, 0.4),
+                0 4px 15px rgba(0,0,0,0.2),
+                inset 0 2px 0 rgba(255,255,255,0.3);
+            animation: orangeButtonPulse 2s ease-in-out infinite;
+        }
+
+        .orange-buy-button:hover {
+            box-shadow:
+                0 12px 35px rgba(255, 107, 53, 0.6),
+                0 6px 20px rgba(0,0,0,0.3),
+                inset 0 3px 0 rgba(255,255,255,0.4);
+            animation: orangeButtonPulse 1s ease-in-out infinite;
+        }
+
+        .orange-buy-button:active {
+            box-shadow:
+                0 6px 20px rgba(255, 107, 53, 0.5),
+                0 3px 10px rgba(0,0,0,0.2),
+                inset 0 2px 0 rgba(255,255,255,0.2);
+        }
+
+        @keyframes orangeButtonPulse {
             0%, 100% {
                 box-shadow:
                     0 8px 25px rgba(255, 107, 53, 0.4),
@@ -1397,7 +1439,7 @@ footer::before {
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #FF6B35; position: relative;">
                 <h3 style="color: #FF6B35; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 2 NÚMEROS</h3>
                 <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$15,000 COP</p>
-                <button onclick="showPurchaseModal('15000', 'Compra de 2 números de rifa', 2);" class="buy-button"><span>COMPRAR</span></button>
+                <button onclick="showPurchaseModal('15000', 'Compra de 2 números de rifa', 2);" class="buy-button orange-buy-button"><span>COMPRAR</span></button>
             </div>
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50; position: relative;">
                 <div class="popular-badge">MÁS POPULARES</div>
