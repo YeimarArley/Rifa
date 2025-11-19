@@ -1,0 +1,89 @@
+<style>
+    .advertisement {
+        position: fixed;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 200px;
+        height: auto;
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #ddd;
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        animation: slideIn 2s ease-out forwards, pulse 3s ease-in-out infinite 2s;
+        z-index: 1000;
+    }
+
+    .advertisement video {
+        width: 100%;
+        height: auto;
+        border-radius: 13px;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 1001;
+    }
+
+    @keyframes slideIn {
+        from {
+            left: -220px;
+            opacity: 0;
+        }
+        to {
+            left: 10px;
+            opacity: 1;
+        }
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+        50% {
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        100% {
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+    }
+</style>
+
+<div class="advertisement" id="adContainer">
+    <button class="close-btn" id="closeBtn">&times;</button>
+    <video autoplay loop id="adVideo">
+        <source src="video publicidad/videorifa.mp4" type="video/mp4">
+        Tu navegador no soporta el elemento de video.
+    </video>
+</div>
+
+<script>
+    const video = document.getElementById('adVideo');
+    const adContainer = document.getElementById('adContainer');
+    const closeBtn = document.getElementById('closeBtn');
+
+    video.play().catch(function(error) {
+        console.log('Autoplay was prevented:', error);
+    });
+
+    video.addEventListener('ended', function() {
+        video.pause();
+        adContainer.style.display = 'none';
+    });
+
+    closeBtn.addEventListener('click', function() {
+        video.pause();
+        adContainer.style.display = 'none';
+    });
+</script>
