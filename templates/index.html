@@ -1365,6 +1365,66 @@ footer::before {
 
 
 
+        /* Advertisement Video Styles */
+        .advertisement {
+            position: fixed;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 200px;
+            height: auto;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            animation: slideIn 2s ease-out forwards, pulse 3s ease-in-out infinite 2s;
+            z-index: 1000;
+        }
+
+        .advertisement video {
+            width: 100%;
+            height: auto;
+            border-radius: 13px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        @keyframes slideIn {
+            from {
+                left: -220px;
+                opacity: 0;
+            }
+            to {
+                left: 10px;
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            }
+            100% {
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            }
+        }
     </style>
 </head>
 <body>
@@ -1372,7 +1432,8 @@ footer::before {
         ¡PARTICIPA EN LA RIFA MÁS GRANDE! • NÚMEROS LIMITADOS • ¡GANA 5 MILLONES! • SORTEO PROFESIONAL • ¡NO TE QUEDES FUERA!
     </marquee>
     <div class="header">
-        <h1>RIFA DE 5 MILLONES </h1>
+        <h1 style="font-size: 1.2em;">RIFA DE 5 MILLONES </h1>
+        <button onclick="scrollToDiscount()" style="background: linear-gradient(135deg, #FF6B35 0%, #FF5722 100%); color: #ffffff; border: none; padding: 8px 18px; border-radius: 20px; font-size: 0.9em; font-weight: 700; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4); transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 107, 53, 0.6)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(255, 107, 53, 0.4)'">IR AL DESCUENTO</button>
     </div>
 
     <div class="slider">
@@ -1433,41 +1494,45 @@ footer::before {
 
     <!-- Purchase Section -->
     <div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 20px 0 100px 0; border-radius: 20px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+        <div style="background: linear-gradient(135deg, #FF6B35 0%, #FF5722 100%); color: #ffffff; padding: 15px 30px; border-radius: 15px; margin-bottom: 30px; display: inline-block; box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4); animation: pulse 2s infinite;">
+            <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 1.8em; margin: 0; letter-spacing: 2px;">¡30% DE DESCUENTO EN TODOS LOS PAQUETES!</h3>
+            <p style="margin: 5px 0 0 0; font-size: 1.1em; font-weight: bold;">OFERTA LIMITADA - ¡APROVECHA AHORA!</p>
+        </div>
         <h2 style="color: #2c3e50; font-family: 'Bebas Neue', sans-serif; font-size: 2em; margin-bottom: 20px; letter-spacing: 2px;">COMPRA TUS NÚMEROS AHORA</h2>
         <p style="color: #495057; font-size: 1.1em; margin-bottom: 30px;">Paga de forma segura con PSE</p>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto;">
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #FF6B35; position: relative;">
                 <div class="popular-badge">MÁS POPULARES</div>
                 <h3 style="color: #FF6B35; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 2 NÚMEROS</h3>
-                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$15,000 COP</p>
-                <button onclick="showPurchaseModal('15000', 'Compra de 2 números de rifa', 2);" class="buy-button orange-buy-button"><span>COMPRAR</span></button>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$10,500 COP</p>
+                <button onclick="showPurchaseModal('10500', 'Compra de 2 números de rifa', 2);" class="buy-button orange-buy-button"><span>COMPRAR</span></button>
             </div>
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50; position: relative;">
                 <div class="popular-badge">MÁS POPULARES</div>
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 4 NÚMEROS</h3>
-                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$25,000 COP</p>
-                <button onclick="showPurchaseModal('25000', 'Compra de 4 números de rifa', 4);" class="buy-button"><span>COMPRAR</span></button>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$17,500 COP</p>
+                <button onclick="showPurchaseModal('17500', 'Compra de 4 números de rifa', 4);" class="buy-button"><span>COMPRAR</span></button>
             </div>
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50; position: relative;">
                 <div class="popular-badge">MÁS POPULARES</div>
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 8 NÚMEROS</h3>
-                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$53,000 COP</p>
-                <button onclick="showPurchaseModal('53000', 'Compra de 8 números de rifa', 8);" class="buy-button"><span>COMPRAR</span></button>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$37,100 COP</p>
+                <button onclick="showPurchaseModal('37100', 'Compra de 8 números de rifa', 8);" class="buy-button"><span>COMPRAR</span></button>
             </div>
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 12 NÚMEROS</h3>
-                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$81,000 COP</p>
-                <button onclick="showPurchaseModal('81000', 'Compra de 12 números de rifa', 12);" class="buy-button"><span>COMPRAR</span></button>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$56,700 COP</p>
+                <button onclick="showPurchaseModal('56700', 'Compra de 12 números de rifa', 12);" class="buy-button"><span>COMPRAR</span></button>
             </div>
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 16 NÚMEROS</h3>
-                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$109,000 COP</p>
-                <button onclick="showPurchaseModal('109000', 'Compra de 16 números de rifa', 16);" class="buy-button"><span>COMPRAR</span></button>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$76,300 COP</p>
+                <button onclick="showPurchaseModal('76300', 'Compra de 16 números de rifa', 16);" class="buy-button"><span>COMPRAR</span></button>
             </div>
             <div style="background: #ffffff; padding: 20px; border-radius: 15px 0 0 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid #4CAF50;">
                 <h3 style="color: #4CAF50; font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; margin-bottom: 10px;">PAQUETE 20 NÚMEROS</h3>
-                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$137,000 COP</p>
-                <button onclick="showPurchaseModal('137000', 'Compra de 20 números de rifa', 20);" class="buy-button"><span>COMPRAR</span></button>
+                <p style="color: #2c3e50; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;">$95,900 COP</p>
+                <button onclick="showPurchaseModal('95900', 'Compra de 20 números de rifa', 20);" class="buy-button"><span>COMPRAR</span></button>
             </div>
         </div>
     </div>
@@ -1733,7 +1798,7 @@ function createCustomerModal(amount, description, count) {
             <button class="close-btn" onclick="document.getElementById('customer-modal').remove()">✕</button>
             
             <div class="modal-header">
-                <h2>💳 Datos para el Pago</h2>
+                <h2> Datos para el Pago</h2>
                 <p>Complete la información para continuar</p>
             </div>
             
@@ -1746,22 +1811,22 @@ function createCustomerModal(amount, description, count) {
             
             <form id="customer-form" onsubmit="return false;">
                 <div class="form-group">
-                    <label>📧 Correo Electrónico <span class="required">*</span></label>
+                    <label> Correo Electrónico <span class="required">*</span></label>
                     <input type="email" id="customer-email" placeholder="tu@email.com" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>👤 Nombre Completo <span class="required">*</span></label>
+                    <label> Nombre Completo <span class="required">*</span></label>
                     <input type="text" id="customer-name" placeholder="Ej: Juan Pérez" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>📱 Teléfono <span class="required">*</span></label>
+                    <label> Teléfono <span class="required">*</span></label>
                     <input type="tel" id="customer-phone" placeholder="3001234567" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>🆔 Tipo de Documento <span class="required">*</span></label>
+                    <label> Tipo de Documento <span class="required">*</span></label>
                     <select id="customer-doc-type" required>
                         <option value="">Seleccione...</option>
                         <option value="CC">Cédula de Ciudadanía</option>
@@ -1773,7 +1838,7 @@ function createCustomerModal(amount, description, count) {
                 </div>
                 
                 <div class="form-group">
-                    <label>📄 Número de Documento <span class="required">*</span></label>
+                    <label> Número de Documento <span class="required">*</span></label>
                     <input type="text" id="customer-doc-number" placeholder="1234567890" required>
                 </div>
                 
@@ -1787,7 +1852,7 @@ function createCustomerModal(amount, description, count) {
                 </div>
                 
                 <p class="info-text">
-                    🔒 Tus datos están protegidos y serán usados únicamente para procesar tu compra
+                     Tus datos están protegidos y serán usados únicamente para procesar tu compra
                 </p>
             </form>
         </div>
@@ -2100,6 +2165,14 @@ function closeModal() {
     }
 }
 
+// ==================== SCROLL TO DISCOUNT ====================
+function scrollToDiscount() {
+    const purchaseSection = document.querySelector('.tickets').closest('div[style*="background: linear-gradient"]');
+    if (purchaseSection) {
+        purchaseSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
 // ==================== INICIALIZAR TODO ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando sistema de pagos MercadoPago...');
@@ -2151,5 +2224,32 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Banner de cookies -->
 <script src="../cookies-banner.js"></script>
 
+    <div class="advertisement" id="adContainer">
+        <button class="close-btn" id="closeBtn">&times;</button>
+        <video autoplay loop id="adVideo" muted>
+            <source src="../video/videorifa.mp4" type="video/mp4">
+            Tu navegador no soporta el elemento de video.
+        </video>
+    </div>
+
+<script>
+    const video = document.getElementById('adVideo');
+    const adContainer = document.getElementById('adContainer');
+    const closeBtn = document.getElementById('closeBtn');
+
+    video.play().catch(function(error) {
+        console.log('Autoplay was prevented:', error);
+    });
+
+    video.addEventListener('ended', function() {
+        video.pause();
+        adContainer.style.display = 'none';
+    });
+
+    closeBtn.addEventListener('click', function() {
+        video.pause();
+        adContainer.style.display = 'none';
+    });
+</script>
 </body>
 </html>
