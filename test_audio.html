@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Audio Video</title>
+</head>
+<body>
+    <h1>Test de Audio del Video</h1>
+    <video controls id="testVideo">
+        <source src="video/videorifa.mp4" type="video/mp4">
+        Tu navegador no soporta el elemento de video.
+    </video>
+
+    <button onclick="playVideo()">Reproducir con Audio</button>
+    <button onclick="checkAudio()">Verificar Audio</button>
+
+    <div id="info"></div>
+
+    <script>
+        const video = document.getElementById('testVideo');
+        const info = document.getElementById('info');
+
+        function playVideo() {
+            video.play().then(() => {
+                info.innerHTML = 'Video reproduciéndose...';
+                video.muted = false;
+            }).catch(error => {
+                info.innerHTML = 'Error al reproducir: ' + error.message;
+            });
+        }
+
+        function checkAudio() {
+            const tracks = video.audioTracks;
+            info.innerHTML = `Pistas de audio: ${tracks ? tracks.length : 'No disponible'}`;
+
+            // Verificar si el video tiene audio
+            video.addEventListener('loadedmetadata', function() {
+                info.innerHTML += `<br>Duración: ${video.duration}s<br>Video width: ${video.videoWidth}<br>Video height: ${video.videoHeight}`;
+            });
+
+            // Forzar carga de metadata
+            video.load();
+        }
+
+        video.addEventListener('error', function(e) {
+            info.innerHTML = 'Error cargando video: ' + e.message;
+        });
+    </script>
+</body>
+</html>

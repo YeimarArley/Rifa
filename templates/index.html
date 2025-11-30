@@ -1403,6 +1403,41 @@ footer::before {
             z-index: 1001;
         }
 
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 13px;
+            z-index: 1002;
+        }
+
+        .play-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 100px;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+        }
+
         @keyframes slideIn {
             from {
                 left: -220px;
@@ -2226,29 +2261,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <div class="advertisement" id="adContainer">
         <button class="close-btn" id="closeBtn">&times;</button>
-        <video autoplay loop id="adVideo" muted>
+        <video autoplay loop muted id="adVideo" poster="../video/videorifa.mp4" preload="metadata">
             <source src="../video/videorifa.mp4" type="video/mp4">
             Tu navegador no soporta el elemento de video.
         </video>
+        <div class="play-overlay" id="playOverlay">
+            <button class="play-btn" id="playBtn">▶ Reproducir Video</button>
+        </div>
     </div>
 
 <script>
     const video = document.getElementById('adVideo');
     const adContainer = document.getElementById('adContainer');
     const closeBtn = document.getElementById('closeBtn');
+    const playBtn = document.getElementById('playBtn');
+    const playOverlay = document.getElementById('playOverlay');
 
-    video.play().catch(function(error) {
-        console.log('Autoplay was prevented:', error);
+    // Handle play button click
+    playBtn.addEventListener('click', function() {
+        video.muted = false; // Unmute the video
+        video.play().then(() => {
+            playOverlay.style.display = 'none';
+            console.log('Video playing with audio');
+        }).catch(function(error) {
+            console.log('Video play was prevented:', error);
+        });
     });
 
+    // Handle video end
     video.addEventListener('ended', function() {
         video.pause();
         adContainer.style.display = 'none';
     });
 
+    // Handle close button
     closeBtn.addEventListener('click', function() {
         video.pause();
         adContainer.style.display = 'none';
+    });
+
+    // Handle video errors
+    video.addEventListener('error', function(e) {
+        console.log('Video error:', e);
+        playOverlay.innerHTML = '<div style="color: white; text-align: center;">Error al cargar el video</div>';
     });
 </script>
 </body>
